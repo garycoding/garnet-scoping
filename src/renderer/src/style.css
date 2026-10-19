@@ -437,6 +437,18 @@ input[type='search'] {
 .board-status.error {
   color: var(--error);
 }
+/* The board has one look, straight lines and Helvetica, so the editor's
+   sloppiness and font controls and its library of drawings are not shown. */
+.board-canvas fieldset:has(input[name='sloppiness']),
+.board-canvas fieldset:has(.FontPicker__container),
+.board-canvas .excalidraw .default-sidebar-trigger {
+  display: none;
+}
+/* The board shows its own colours: midnight-blue ground, pale-yellow ink. The
+   editor's dark theme would invert them, so its inverting filter is off. */
+.board-canvas .excalidraw.theme--dark {
+  --theme-filter: none;
+}
 .board-canvas {
   flex: 1;
   min-height: 0;

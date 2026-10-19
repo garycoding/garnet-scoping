@@ -20,9 +20,14 @@ const SAVE_MS = 400
 // The board's look: text in Helvetica, the system's own face, and shapes and
 // connections drawn with straight, sharp lines.
 const NORMAL_FONT = 2 // Helvetica, in the file format's font numbering
+// Midnight-blue ground and cream-yellow ink, which replaces the default black.
+export const GROUND = '#0b1226'
+const INK = '#f7f0d2'
+// Black, and the earlier, deeper yellow, are replaced by the board's ink.
+const DEFAULT_INKS = new Set(['#1e1e1e', '#000000', '#f2e2a0'])
 const PLAIN = { roughness: 0, roundness: null }
 const HAND_FONTS = new Set([1, 5, 6, 7, 8]) // the format's hand-drawn and display faces
-const PLAIN_APP_STATE = { currentItemRoughness: 0, currentItemFontFamily: NORMAL_FONT, currentItemRoundness: 'sharp', currentItemArrowType: 'sharp' }
+const PLAIN_APP_STATE = { currentItemStrokeColor: INK, currentItemRoughness: 0, currentItemFontFamily: NORMAL_FONT, currentItemRoundness: 'sharp', currentItemArrowType: 'sharp' }
 
 // Gives elements drawn in the hand-drawn style the plain one: a board saved
 // before the plain style is converted once, when it is first opened.
@@ -35,6 +40,13 @@ export function toPlain(els) {
     return Object.keys(changes).length ? bump(e, changes) : e
   })
 }
+
+// The board has one look: straight lines, Helvetica and yellow ink. A rough
+// line, another face or black ink (from a board saved earlier, a paste, or an
+// edit made outside) is brought to it.
+const offStyle = (e) => e.roughness || DEFAULT_INKS.has(e.strokeColor) || (e.type === 'text' && e.fontFamily !== NORMAL_FONT)
+const straighten = (els) =>
+  els.map((e) => (offStyle(e) ? bump(e, { roughness: 0, ...(DEFAULT_INKS.has(e.strokeColor) ? { strokeColor: INK } : {}), ...(e.type === 'text' ? { fontFamily: NORMAL_FONT } : {}) }) : e))
 
 let elements = []
 let api = null
@@ -164,7 +176,7 @@ export function applyRequest(req) {
     done.removed += 1
   }
 
-  replaceScene(restoreElements(els, null, { refreshDimensions: true }))
+  replaceScene(restoreElements(straighten(els), null, { refreshDimensions: true }))
   if (api && done.added) api.scrollToContent(undefined, { fitToContent: true, animate: true })
   return done
 }
@@ -176,7 +188,7 @@ function mergeExternal(incoming) {
     const have = out.get(e.id)
     if (!have || (e.version ?? 0) > (have.version ?? 0)) out.set(e.id, e)
   }
-  replaceScene(restoreElements([...out.values()], null))
+  replaceScene(restoreElements(straighten([...out.values()]), null))
 }
 
 export async function mountBoard(container) {
@@ -203,9 +215,9 @@ export async function mountBoard(container) {
   container.replaceChildren(head, holder)
 
   elements = info.scene?.elements ? restoreElements(info.scene.elements, null) : []
-  const convert = info.scene && info.scene.style !== 'plain'
+  const convert = info.scene && (info.scene.style !== 'plain' || elements.some(offStyle))
   // A change of face changes the text's measured size, so it is remeasured.
-  if (convert) elements = restoreElements(toPlain(elements), null, { refreshDimensions: true })
+  if (convert) elements = restoreElements(straighten(toPlain(elements)), null, { refreshDimensions: true })
   savedVersion = convert ? -1 : getSceneVersion(elements)
 
   window.garnet.board.onRequest(({ request, error }) => {
@@ -225,13 +237,15 @@ export async function mountBoard(container) {
         if (first) window.garnet.board.ready()
         if (first && convert) scheduleSave()
       },
-      // The dark theme inverts the canvas, so the stored background is white.
-      initialData: { elements, appState: { theme: 'dark', viewBackgroundColor: '#ffffff', ...PLAIN_APP_STATE }, scrollToContent: true },
+      initialData: { elements, appState: { theme: 'dark', viewBackgroundColor: GROUND, ...PLAIN_APP_STATE }, scrollToContent: true },
       theme: 'dark',
       onChange: (els) => {
         elements = els
+        // Pasted elements may come in another style; they are given the board's.
+        if (els.some((e) => !e.isDeleted && offStyle(e))) queueMicrotask(() => replaceScene(restoreElements(straighten(elements), null, { refreshDimensions: true })))
         scheduleSave()
       },
+      // The board's own controls: no style choices beyond colour, stroke and edges.
       UIOptions: { canvasActions: { loadScene: false, saveToActiveFile: false, export: false, toggleTheme: false }, tools: { image: false } },
     }),
   )
