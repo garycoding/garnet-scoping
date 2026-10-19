@@ -1,0 +1,41 @@
+<!doctype html>
+<!-- SPDX-FileCopyrightText: 2026 Gary Frattarola <garyf@parkviewlab.ai> -->
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:" />
+    <title>Desk</title>
+    <link rel="stylesheet" href="./src/style.css" />
+  </head>
+  <body class="session-page">
+    <header class="bar">
+      <div class="title-block">
+        <h1 id="title">Session</h1>
+        <div id="facts" class="facts"></div>
+      </div>
+      <nav class="tabs"><button id="tab-desk" class="active" type="button">Desk</button><button id="tab-board" type="button">Board</button></nav>
+    </header>
+    <div id="drift" class="drift" hidden></div>
+    <main id="desk" class="desk">
+      <section class="present">
+        <div class="card"><h2>Plan</h2><ol id="plan" class="plan"></ol></div>
+        <div class="card"><h2>Now</h2><ul id="now" class="actions"></ul></div>
+        <div class="card"><h2>Waiting</h2><ul id="waiting" class="actions"></ul></div>
+        <div class="card"><h2>Last word</h2><div id="last-word"></div></div>
+        <div class="card"><h2>Touched this turn</h2><div id="touched"></div></div>
+      </section>
+      <section class="trail-col">
+        <h2>Trail</h2>
+        <div id="trail"></div>
+      </section>
+      <section class="memory-col">
+        <h2>Memory</h2>
+        <div id="memory"></div>
+      </section>
+    </main>
+    <main id="board" class="board" hidden></main>
+    <div id="viewer" class="viewer" hidden><div class="viewer-box"><header><h3 id="viewer-title"></h3><button id="viewer-close" type="button">Close</button></header><div id="viewer-body"></div></div></div>
+    <script type="module" src="./src/session.js"></script>
+  </body>
+</html>

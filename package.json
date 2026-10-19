@@ -1,0 +1,41 @@
+{
+  "name": "garnet-scoping",
+  "version": "0.1.0",
+  "description": "A desk for each Claude Code session: the agent's plan, actions, files, memory and waits, read live from the session transcript, beside a shared whiteboard",
+  "author": "Gary Frattarola <garyf@parkviewlab.ai>",
+  "license": "AGPL-3.0-or-later",
+  "private": true,
+  "main": "out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "start": "electron-vite preview",
+    "lint": "eslint .",
+    "legal:prepare": "node scripts/prepare-legal.mjs",
+    "legal:notices": "generate-license-file --input ./package.json --output ./legal/THIRD-PARTY-NOTICES.txt --overwrite --eol lf --ci",
+    "legal:list": "license-checker-rseidelsohn --production --json --out ./legal/oss-licenses.json && node scripts/clean-oss-licenses.mjs",
+    "legal": "npm run legal:prepare && npm run legal:notices && npm run legal:list",
+    "build:dist": "npm run legal && electron-vite build && electron-builder",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "electron": "^43.1.1",
+    "electron-builder": "^26.16.1",
+    "electron-vite": "^5.0.0",
+    "eslint": "^10.5.0",
+    "generate-license-file": "^4.2.1",
+    "globals": "^17.6.0",
+    "license-checker-rseidelsohn": "^5.0.1",
+    "vite": "^7.0.0",
+    "vitest": "^4.1.12"
+  },
+  "dependencies": {
+    "@excalidraw/excalidraw": "^0.18.1",
+    "dompurify": "^3.4.17",
+    "marked": "^18.1.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "yaml": "^2.9.1"
+  }
+}

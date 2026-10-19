@@ -1,0 +1,19 @@
+<!doctype html>
+<!-- SPDX-FileCopyrightText: 2026 Gary Frattarola <garyf@parkviewlab.ai> -->
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:" />
+    <title>garnet-scoping</title>
+    <link rel="stylesheet" href="./src/style.css" />
+  </head>
+  <body class="list-page">
+    <header class="bar">
+      <h1>Sessions</h1>
+      <input id="filter" type="search" placeholder="Filter by title, folder or first message" autocomplete="off" />
+    </header>
+    <main id="groups"></main>
+    <script type="module" src="./src/list.js"></script>
+  </body>
+</html>

@@ -20,9 +20,10 @@ precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 Gary Frattarola <garyf@parkviewlab.ai>"
 SPDX-License-Identifier = "AGPL-3.0-or-later"
 
-# --- The app's name and icon → all rights reserved -------------------------
+# The app icon is a mark: all rights reserved, not relicensed by the
+# repository.
 [[annotations]]
-path = ["build/icon.*", "brand/**"]
+path = ["build/icon.png", "build/icon.svg", "build/icon.icns"]
 precedence = "override"
 SPDX-FileCopyrightText = "2026 Gary Frattarola <garyf@parkviewlab.ai>"
 SPDX-License-Identifier = "LicenseRef-AllRightsReserved"
