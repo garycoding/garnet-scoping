@@ -15,6 +15,7 @@ import { listSessions } from './transcript/sessions.js'
 import { listMemory } from './transcript/memory.js'
 import { follow } from './follower.js'
 import { openBoard } from './board.js'
+import { openAboutWindow, openLicensesWindow } from './about.js'
 
 const CLAUDE = join(homedir(), '.claude')
 const PROJECTS = join(CLAUDE, 'projects')
@@ -44,7 +45,7 @@ function createListWindow() {
   listWindow.on('closed', () => (listWindow = null))
 }
 
-// A session's window: its Desk (and, later, its board).
+// A session's window: its Desk and its board.
 function openSession(info) {
   const open = windows.get(info.id)
   if (open && !open.win.isDestroyed()) return open.win.focus()
@@ -140,13 +141,23 @@ function watchProjects() {
 
 function buildMenu() {
   const isMac = process.platform === 'darwin'
+  const about = { label: 'About garnet-scoping', click: () => openAboutWindow() }
+  const licenses = { label: 'Open Source Licenses…', click: () => openLicensesWindow() }
   Menu.setApplicationMenu(
     Menu.buildFromTemplate([
-      ...(isMac ? [{ role: 'appMenu' }] : []),
+      ...(isMac
+        ? [
+            {
+              role: 'appMenu',
+              submenu: [about, licenses, { type: 'separator' }, { role: 'services' }, { type: 'separator' }, { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' }, { type: 'separator' }, { role: 'quit' }],
+            },
+          ]
+        : []),
       { label: 'File', submenu: [{ label: 'Sessions', accelerator: 'CmdOrCtrl+L', click: () => createListWindow() }, { type: 'separator' }, { role: 'close' }] },
       { role: 'editMenu' },
       { label: 'View', submenu: [{ role: 'reload' }, { role: 'toggleDevTools' }, { type: 'separator' }, { role: 'resetZoom' }, { role: 'zoomIn' }, { role: 'zoomOut' }] },
       { role: 'windowMenu' },
+      { role: 'help', submenu: [about, licenses] },
     ]),
   )
 }
