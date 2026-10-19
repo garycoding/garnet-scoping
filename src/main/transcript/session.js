@@ -313,8 +313,11 @@ export function snapshot(s) {
   const newest = versions[versions.length - 1] ?? null
   // The agent has spoken last when the last turn closed with its words and no
   // message of the person's came after (R2.4).
+  // An action still running, or a notification after the words, means the
+  // agent is still at work.
   const lastItem = last?.items[last.items.length - 1]
-  const agentSpokeLast = Boolean(last && (last.closing || last.recap) && lastItem && lastItem.type !== 'mid-turn')
+  const running = Boolean(last?.items.some((it) => it.type === 'action' && !it.done))
+  const agentSpokeLast = Boolean(last && !running && lastItem && (lastItem.type === 'text' || (last.recap && lastItem.type !== 'mid-turn' && lastItem.type !== 'notification')))
   return {
     id: s.id,
     facts: {
@@ -333,7 +336,7 @@ export function snapshot(s) {
     plan: { source: s.plan.source, items: s.plan.items.map(({ content, status }) => ({ content, status })), updatedAt: s.plan.updatedAt ?? null },
     now: actions,
     waiting: [...s.background.values()].filter((b) => b.status === 'running'),
-    lastWord: last ? { text: last.closing, recap: last.recap, ask: last.ask, at: last.closingAt, agentSpokeLast } : null,
+    lastWord: last ? { text: last.closing, recap: last.recap, ask: last.ask, at: last.closingAt, agentSpokeLast, working: running } : null,
     touched: last ? { files: [...last.files], notes: [...last.notes] } : { files: [], notes: [] },
     turns: turns.map((t) => ({
       at: t.at,
