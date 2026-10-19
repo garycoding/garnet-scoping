@@ -1,0 +1,28 @@
+# Catch-all REUSE annotations so whole trees are covered without per-file
+# headers. Per-file SPDX headers still win where present. See LICENSING.md.
+# Verify: uvx --from "reuse[charset-normalizer]" reuse lint
+version = 1
+
+SPDX-PackageName = "garnet-scoping"
+SPDX-PackageSupplier = "Gary Frattarola <garyf@parkviewlab.ai>"
+
+# --- Documentation and repository metadata → CC-BY-4.0 ---------------------
+[[annotations]]
+path = ["docs/**", "README.md", "LICENSING.md", "CHANGELOG.md", "REUSE.toml", ".gitignore", "AGENTS.md", "CLAUDE.md"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Gary Frattarola <garyf@parkviewlab.ai>"
+SPDX-License-Identifier = "CC-BY-4.0"
+
+# --- Code, build configuration, workflows → AGPL-3.0-or-later --------------
+[[annotations]]
+path = [".github/**", "LICENSE", "src/**", "scripts/**", "tests/**", "package.json", "package-lock.json", "electron.vite.config.js", "electron-builder.yml", "eslint.config.mjs"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Gary Frattarola <garyf@parkviewlab.ai>"
+SPDX-License-Identifier = "AGPL-3.0-or-later"
+
+# --- The app's name and icon → all rights reserved -------------------------
+[[annotations]]
+path = ["build/icon.*", "brand/**"]
+precedence = "override"
+SPDX-FileCopyrightText = "2026 Gary Frattarola <garyf@parkviewlab.ai>"
+SPDX-License-Identifier = "LicenseRef-AllRightsReserved"
