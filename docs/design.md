@@ -33,7 +33,7 @@ Built from each transcript's size and modification time, the first lines (its wo
 - Nothing under the Claude configuration directory is opened for writing (R5.1).
 - A shell action is shown by its description; its command and output are shown only when the person opens that action (R5.2).
 - `session_context` and `prompt_snapshot` attachments are never rendered (R5.5).
-- `session.webRequest.onBeforeRequest` cancels every request whose scheme is not the app's own (R5.4); Excalidraw's fonts are bundled and its library, sharing and collaboration features are switched off.
+- `session.webRequest.onBeforeRequest` cancels every request whose scheme is not the app's own (R5.4), before any connection is made. Excalidraw's fonts are copied into the build and found through `EXCALIDRAW_ASSET_PATH`; Excalidraw also lists a CDN beside each bundled font, and those attempts are cancelled like any other (Chromium does not allow a web address to be redirected to a local file). Its file loading, export and image tools are switched off, and windows may not open others.
 
 ## The board
 

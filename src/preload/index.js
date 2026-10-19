@@ -12,4 +12,12 @@ contextBridge.exposeInMainWorld('garnet', {
   listMemory: () => ipcRenderer.invoke('memory:list'),
   readMemory: (path) => ipcRenderer.invoke('memory:read', path),
   showInFinder: (path) => ipcRenderer.invoke('finder:show', path),
+  board: {
+    open: () => ipcRenderer.invoke('board:open'),
+    save: (scene) => ipcRenderer.invoke('board:save', scene),
+    ready: () => ipcRenderer.invoke('board:ready'),
+    onRequest: (fn) => ipcRenderer.on('board:request', (_e, r) => fn(r)),
+    onExternal: (fn) => ipcRenderer.on('board:external', (_e, els) => fn(els)),
+    onPending: (fn) => ipcRenderer.on('board:pending', () => fn()),
+  },
 })

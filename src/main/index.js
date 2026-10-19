@@ -14,6 +14,7 @@ import { readFile } from 'node:fs/promises'
 import { listSessions } from './transcript/sessions.js'
 import { listMemory } from './transcript/memory.js'
 import { follow } from './follower.js'
+import { openBoard } from './board.js'
 
 const CLAUDE = join(homedir(), '.claude')
 const PROJECTS = join(CLAUDE, 'projects')
@@ -57,9 +58,18 @@ function openSession(info) {
     }, PUSH_MS)
   }
   const follower = follow(info.id, info.file, push)
-  windows.set(info.id, { win, follower, project: info.project, file: info.file })
+  const send = (channel, payload) => !win.isDestroyed() && win.webContents.send(channel, payload)
+  const board = openBoard(info.id, {
+    title: info.title,
+    onRequest: (r) => send('board:request', r),
+    onExternal: (elements) => send('board:external', elements),
+    onPending: () => send('board:pending'),
+  })
+  windows.set(info.id, { win, follower, board, project: info.project, file: info.file })
   load(win, 'session', { id: info.id })
+  win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
   win.on('closed', () => {
+    board.close()
     follower.close()
     windows.delete(info.id)
   })
@@ -92,13 +102,22 @@ function registerIpc() {
     const full = w && inside(join(PROJECTS, w.project, 'memory'), path)
     return full && full.endsWith('.md') ? readFile(full, 'utf8') : null
   })
+  ipcMain.handle('board:open', async (e) => {
+    const w = entryOf(e)
+    return w ? { paths: w.board.paths, scene: await w.board.load() } : null
+  })
+  ipcMain.handle('board:save', (e, scene) => entryOf(e)?.board.save(scene))
+  ipcMain.handle('board:ready', (e) => entryOf(e)?.board.ready())
   // Shows a folder or file in the Finder (S7); only absolute paths.
   ipcMain.handle('finder:show', (_e, p) => {
     if (typeof p === 'string' && isAbsolute(p)) shell.showItemInFolder(p)
   })
 }
 
-// Every request that is not for the app's own files is refused (R5.4).
+// Every request that is not for the app's own files is refused (R5.4),
+// before any connection is made. Excalidraw lists a CDN beside the bundled
+// copy of each font; those attempts are refused like any other, and the
+// bundled copy is the one used.
 function refuseNetwork() {
   const dev = process.env.ELECTRON_RENDERER_URL
   session.defaultSession.webRequest.onBeforeRequest((details, done) => {

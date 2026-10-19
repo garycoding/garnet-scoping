@@ -258,8 +258,24 @@ function showTab(name) {
   $('tab-desk').classList.toggle('active', name === 'desk')
   $('tab-board').classList.toggle('active', name === 'board')
 }
+// The board is loaded when its tab is first shown; Excalidraw finds its
+// bundled fonts beside this page (no request leaves the app).
+let boardMounted = false
+async function showBoard() {
+  showTab('board')
+  $('tab-board').classList.remove('pending')
+  if (boardMounted) return
+  boardMounted = true
+  window.EXCALIDRAW_ASSET_PATH = new URL('./', location.href).href
+  const { mountBoard } = await import('./board.js')
+  await mountBoard($('board'))
+}
 $('tab-desk').addEventListener('click', () => showTab('desk'))
-$('tab-board').addEventListener('click', () => showTab('board'))
+$('tab-board').addEventListener('click', showBoard)
+// A request from the agent waits until the board is open: mark the tab.
+window.garnet.board.onPending(() => {
+  if (!boardMounted) $('tab-board').classList.add('pending')
+})
 
 async function refresh() {
   const next = await window.garnet.view()
