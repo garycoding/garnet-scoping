@@ -20,10 +20,11 @@ const SAVE_MS = 400
 // The board's look: text in Helvetica, the system's own face, and shapes and
 // connections drawn with straight, sharp lines.
 const NORMAL_FONT = 2 // Helvetica, in the file format's font numbering
-// Midnight-blue ground and pale-yellow ink, which replaces the default black.
+// Midnight-blue ground and cream-yellow ink, which replaces the default black.
 export const GROUND = '#0b1226'
-const INK = '#f2e2a0'
-const DEFAULT_INKS = new Set(['#1e1e1e', '#000000'])
+const INK = '#f7f0d2'
+// Black, and the earlier, deeper yellow, are replaced by the board's ink.
+const DEFAULT_INKS = new Set(['#1e1e1e', '#000000', '#f2e2a0'])
 const PLAIN = { roughness: 0, roundness: null }
 const HAND_FONTS = new Set([1, 5, 6, 7, 8]) // the format's hand-drawn and display faces
 const PLAIN_APP_STATE = { currentItemStrokeColor: INK, currentItemRoughness: 0, currentItemFontFamily: NORMAL_FONT, currentItemRoundness: 'sharp', currentItemArrowType: 'sharp' }
