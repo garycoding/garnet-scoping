@@ -19,3 +19,11 @@ path = [".github/**", "LICENSE", "src/**", "scripts/**", "tests/**", "package.js
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 Gary Frattarola <garyf@parkviewlab.ai>"
 SPDX-License-Identifier = "AGPL-3.0-or-later"
+
+# The app icon is a mark: all rights reserved, not relicensed by the
+# repository.
+[[annotations]]
+path = ["build/icon.png", "build/icon.svg", "build/icon.icns"]
+precedence = "override"
+SPDX-FileCopyrightText = "2026 Gary Frattarola <garyf@parkviewlab.ai>"
+SPDX-License-Identifier = "LicenseRef-AllRightsReserved"

@@ -1,0 +1,37 @@
+# electron-builder: packages the electron-vite build (out/) into a macOS .dmg
+# (the app is macOS only for now). Run after `npm run build`. The build signs
+# and notarizes when the Apple secrets are set, else it is unsigned (see the
+# handbook's electron-tooling.md).
+appId: ai.parkviewlab.garnet-scoping
+productName: garnet-scoping
+artifactName: ${name}-${version}-${arch}.${ext}
+directories:
+  output: dist
+  buildResources: build
+files:
+  - '!src/**'
+  - '!docs/**'
+  - '!scripts/**'
+  - '!tests/**'
+  - '!.github/**'
+  - '!LICENSES/**'
+  # Every dependency is bundled into out/ by electron-vite, so no module is
+  # loaded from node_modules at run time and none is packaged.
+  - '!node_modules/**'
+  - '!{electron.vite.config.js,eslint.config.mjs,electron-builder.yml,REUSE.toml,LICENSING.md,CHANGELOG.md,README.md,AGENTS.md,CLAUDE.md,.gitignore}'
+mac:
+  category: public.app-category.developer-tools
+  target: dmg
+  hardenedRuntime: true
+npmRebuild: false
+# Ship the generated license/notice bundle (run `npm run legal` first; CI does
+# this before packaging). See electron-tooling.md, "License notices + in-app
+# viewer".
+extraResources:
+  - from: legal
+    to: legal
+    filter: ['**/*']
+publish:
+  provider: github
+  owner: garycoding
+  repo: garnet-scoping
