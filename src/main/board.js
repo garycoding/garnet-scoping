@@ -113,7 +113,7 @@ export function openBoard(id, { title = null, dir = BOARDS, onRequest, onExterna
 
   async function save(scene) {
     await mkdir(dir, { recursive: true })
-    const text = JSON.stringify({ type: 'excalidraw', version: 2, source: 'garnet-scoping', style: 'plain', elements: scene.elements, appState: { viewBackgroundColor: scene.background ?? '#ffffff' }, files: {} }, null, 2)
+    const text = JSON.stringify({ type: 'excalidraw', version: 2, source: 'garnet-scoping', style: 'plain', elements: scene.elements, appState: { viewBackgroundColor: scene.background ?? '#0b1226' }, files: {} }, null, 2)
     lastWritten = hash(text)
     await writeAtomic(p.board, text)
     await writeAtomic(p.rendition, rendition(scene.elements, { title, requestPath: p.request }))
