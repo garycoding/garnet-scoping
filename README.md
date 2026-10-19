@@ -4,7 +4,7 @@ A macOS desktop app that shows what a Claude Code session is doing, for the pers
 
 ## Status
 
-Specification stage: the requirements are in [`docs/requirements.md`](docs/requirements.md), for review before any design. Ideas not yet decided are in [`docs/in-flight_ideas.md`](docs/in-flight_ideas.md).
+In development toward its first release: the requirements are in [`docs/requirements.md`](docs/requirements.md) and the design in [`docs/design.md`](docs/design.md). Ideas not yet decided are in [`docs/in-flight_ideas.md`](docs/in-flight_ideas.md).
 
 ## Contributing
 
