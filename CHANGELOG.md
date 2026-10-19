@@ -4,6 +4,17 @@ All notable changes to this project are recorded here.
 
 ## [Unreleased]
 
+## [v0.1.2] - 2026-10-19
+
+### Highlights
+
+_Highlights were not generated for this release._
+
+### Features
+
+- The board's own look, midnight blue and yellow ink (#12)
+- A whiter yellow for the board's ink (#13)
+
 ## [v0.1.1] - 2026-10-19
 
 ### Highlights
