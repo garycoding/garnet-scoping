@@ -1,4 +1,4 @@
-# garnet-scoping: requirements, draft 1
+# garnet-scoping: requirements, draft 2
 
 ## Purpose
 
@@ -24,12 +24,26 @@ These were ruled before this document was written.
 - D5. The repository is public, under the garycoding account, and the code is licensed under AGPL-3.0-or-later.
 - D6. The app is named garnet-scoping; "Desk" names its window, not the app.
 - D7. Changes to the details are expected to follow from use: the first version is the starting point, not a fixed design.
+- D8. Each session has one window, holding its Desk and its board (R7); the board is a shared whiteboard of shapes with text, lines and arrows.
+
+## Settled under the go-ahead
+
+These were proposed and then settled under the instruction to proceed as recommended toward the first release (2026-10-19); they are the author's recommendations, not separate rulings, and may be revisited in use.
+
+- S1. All sessions on the machine are listed, the recently active first (P1).
+- S2. The app makes no network connection, enforced in code (P2, R5.4).
+- S3. An action's raw output is shown only for the action the person picks (P3, R5.2).
+- S4. The name and icon are reserved as the project's unregistered marks (P4).
+- S5. Subagents' and background agents' own transcripts are left out of the first version (Q1).
+- S6. Messages the person sends while the agent is working appear in the trail where they arrived, marked as sent mid-turn (Q2).
+- S7. A Desk can show the session's working folder, and any touched file, in the Finder (Q3).
+- S8. Finished sessions stay listed; nothing is hidden by age (Q4).
 
 ## Requirements
 
 ### R1. Sessions
 
-R1.1. The app lists the sessions it finds on the machine, grouped by project, each with its title, its project folder, the time of its last activity, and whether it is live (its transcript is still being written).
+R1.1. The app lists the sessions it finds on the machine, grouped by project, each with its title, its project folder, and the time of its last activity; a session whose transcript was written in the last ten minutes is marked as recently active. (Whether a session is still open cannot be read from its transcript, so the mark is about activity, not about the session's state.)
 
 R1.2. A Desk can be opened for any listed session, and several Desks can be open at once, one per window.
 
@@ -73,7 +87,11 @@ R5.1. The app reads the transcripts and the memory stores; it never writes, move
 
 R5.2. A transcript can hold anything a tool printed, secrets included. The Desk shows each action by its description and target, not by its output; an action's raw output is not shown unless the person asks for that action's output.
 
-R5.3. A long session's transcript can run to tens of megabytes: a Desk reads it incrementally, and opens within two seconds on a current laptop for a session of that size.
+R5.3. A long session's transcript can run to tens of megabytes: a Desk reads it incrementally, and opens within two seconds on a current laptop for a session of that size. The session list is built from each file's size, time and a few lines at its ends, never by reading whole files.
+
+R5.4. The app makes no network connection: every request that is not to the app's own files is refused in code, whatever part of the app makes it.
+
+R5.5. Records that hold the session's setup rather than its work (the system prompt, the account's context) are never shown.
 
 ### R6. Format drift
 
@@ -83,16 +101,30 @@ R6.2. The app records the Claude Code versions it was checked against, reads the
 
 R6.3. What the Desk shows can be traced to the records it was derived from, so that when a part goes blank after an update, the missing kind of record can be found.
 
-## Proposed, not yet ruled
+### R7. The board
 
-These are the defaults proposed during the discussion. Each needs a ruling, and may change in review.
+R7.1. A session's window has a board beside its Desk: a whiteboard on which the person places shapes (rectangles, ellipses, diamonds), writes text in them, and joins them with lines and arrows. Freehand drawing is not part of the board.
+
+R7.2. The board is kept in an Excalidraw file per session (Excalidraw's format and editor are MIT), in a folder of the app's own outside every repository and outside the Claude configuration directory, at a path without spaces derived from the session's id. The window shows the path and copies it, so that the agent can be told where the board is.
+
+R7.3. Beside the board file the app keeps a plain-text rendition, current with every change: each shape's id, kind, text and rough position, and each connection as "A → B" with its label. The agent reads the rendition rather than the board's full JSON.
+
+R7.4. The agent changes the board by writing a short request file beside it, listing shapes to add (kind, text, position, and connections by shape id) and shapes to remove or relabel. The app expands the request into full Excalidraw elements, merges it into the board, and removes the request file; the agent never writes Excalidraw's full format.
+
+R7.5. The person's edits and the agent's requests merge by element, so that neither overwrites the other: a change to the board file from outside the window is merged element by element, the newer version of each element winning, and the board file is always written whole and atomically.
+
+## Proposed and settled
+
+These were the defaults proposed during the discussion; S1 to S4 above settle them.
 
 - P1. **Which sessions:** all sessions on the machine are listed, the live ones first and the finished ones below, since a finished session's record is as readable as a live one's.
 - P2. **No network:** the app makes no network connection of any kind, since a transcript can hold anything.
 - P3. **Raw output:** R5.2 as written: an action's output is shown only for the action the person picks, never in bulk and never by default.
 - P4. **Name and icon:** reserved as the project's unregistered marks, as for the other apps of the family, with a statement in `LICENSING.md` once the app has an icon.
 
-## Open questions
+## Open questions, settled
+
+S5 to S8 above settle these.
 
 - Q1. Subagents and background agents keep transcripts of their own beside the session's. Should a Desk show them, nested under the action that started them, or leave them out of the first version?
 - Q2. Should the Desk show the session's own record of the person's mid-turn messages separately, or only as they appear in the trail?
