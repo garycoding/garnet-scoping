@@ -17,6 +17,25 @@ const DIAMOND = { width: 220, height: 130 }
 const GRID = { columns: 3, dx: 300, dy: 200 }
 const SAVE_MS = 400
 
+// The board's look: text in Helvetica, the system's own face, and shapes and
+// connections drawn with straight, sharp lines.
+const NORMAL_FONT = 2 // Helvetica, in the file format's font numbering
+const PLAIN = { roughness: 0, roundness: null }
+const HAND_FONTS = new Set([1, 5, 6, 7, 8]) // the format's hand-drawn and display faces
+const PLAIN_APP_STATE = { currentItemRoughness: 0, currentItemFontFamily: NORMAL_FONT, currentItemRoundness: 'sharp', currentItemArrowType: 'sharp' }
+
+// Gives elements drawn in the hand-drawn style the plain one: a board saved
+// before the plain style is converted once, when it is first opened.
+export function toPlain(els) {
+  return els.map((e) => {
+    const changes = {}
+    if (e.roughness) changes.roughness = 0
+    if (e.roundness && e.type !== 'ellipse') changes.roundness = null
+    if (e.type === 'text' && HAND_FONTS.has(e.fontFamily)) changes.fontFamily = NORMAL_FONT
+    return Object.keys(changes).length ? bump(e, changes) : e
+  })
+}
+
 let elements = []
 let api = null
 let savedVersion = -1
@@ -91,8 +110,8 @@ export function applyRequest(req) {
     const placed = Number.isFinite(a.x) && Number.isFinite(a.y) ? { x: a.x, y: a.y } : nextSlot()
     const { x, y } = placed
     const size = a.kind === 'diamond' ? DIAMOND : SIZE
-    if (a.kind === 'text') skeleton.push({ type: 'text', ...(a.id ? { id: String(a.id) } : {}), x, y, text: String(a.text ?? '') })
-    else skeleton.push({ type: a.kind, ...(a.id ? { id: String(a.id) } : {}), x, y, width: a.width ?? size.width, height: a.height ?? size.height, ...(a.text ? { label: { text: String(a.text) } } : {}) })
+    if (a.kind === 'text') skeleton.push({ type: 'text', ...(a.id ? { id: String(a.id) } : {}), x, y, text: String(a.text ?? ''), fontFamily: NORMAL_FONT })
+    else skeleton.push({ type: a.kind, ...PLAIN, ...(a.id ? { id: String(a.id) } : {}), x, y, width: a.width ?? size.width, height: a.height ?? size.height, ...(a.text ? { label: { text: String(a.text), fontFamily: NORMAL_FONT } } : {}) })
   }
   if (skeleton.length) {
     const made = convertToExcalidrawElements(skeleton, { regenerateIds: false })
@@ -111,7 +130,7 @@ export function applyRequest(req) {
     const p = edgePoint(from, centre(to))
     const q = edgePoint(to, centre(from))
     const [arrow, ...label] = convertToExcalidrawElements(
-      [{ type: a.kind, x: p.x, y: p.y, width: q.x - p.x, height: q.y - p.y, points: [[0, 0], [q.x - p.x, q.y - p.y]], ...(a.text ? { label: { text: String(a.text) } } : {}), ...(a.kind === 'arrow' ? { endArrowhead: 'arrow' } : {}) }],
+      [{ type: a.kind, ...PLAIN, x: p.x, y: p.y, width: q.x - p.x, height: q.y - p.y, points: [[0, 0], [q.x - p.x, q.y - p.y]], ...(a.text ? { label: { text: String(a.text), fontFamily: NORMAL_FONT } } : {}), ...(a.kind === 'arrow' ? { endArrowhead: 'arrow' } : {}) }],
       { regenerateIds: true },
     )
     const bound = { ...arrow, startBinding: { elementId: from.id, focus: 0, gap: 4 }, endBinding: { elementId: to.id, focus: 0, gap: 4 } }
@@ -184,7 +203,10 @@ export async function mountBoard(container) {
   container.replaceChildren(head, holder)
 
   elements = info.scene?.elements ? restoreElements(info.scene.elements, null) : []
-  savedVersion = getSceneVersion(elements)
+  const convert = info.scene && info.scene.style !== 'plain'
+  // A change of face changes the text's measured size, so it is remeasured.
+  if (convert) elements = restoreElements(toPlain(elements), null, { refreshDimensions: true })
+  savedVersion = convert ? -1 : getSceneVersion(elements)
 
   window.garnet.board.onRequest(({ request, error }) => {
     if (error) return setStatus(error, true)
@@ -201,9 +223,10 @@ export async function mountBoard(container) {
         const first = !api
         api = a
         if (first) window.garnet.board.ready()
+        if (first && convert) scheduleSave()
       },
       // The dark theme inverts the canvas, so the stored background is white.
-      initialData: { elements, appState: { theme: 'dark', viewBackgroundColor: '#ffffff' }, scrollToContent: true },
+      initialData: { elements, appState: { theme: 'dark', viewBackgroundColor: '#ffffff', ...PLAIN_APP_STATE }, scrollToContent: true },
       theme: 'dark',
       onChange: (els) => {
         elements = els
