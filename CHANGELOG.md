@@ -4,6 +4,16 @@ All notable changes to this project are recorded here.
 
 ## [Unreleased]
 
+## [v0.1.1] - 2026-10-19
+
+### Highlights
+
+_Highlights were not generated for this release._
+
+### Features
+
+- The board in a plain face with crisp lines (#10)
+
 ## [v0.1.0] - 2026-10-19
 
 ### Highlights
