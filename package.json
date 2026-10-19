@@ -31,6 +31,8 @@
     "vitest": "^4.1.12"
   },
   "dependencies": {
+    "dompurify": "^3.4.17",
+    "marked": "^18.1.1",
     "yaml": "^2.9.1"
   }
 }

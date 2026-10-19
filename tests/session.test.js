@@ -49,6 +49,11 @@ describe('the session model', () => {
     expect(s.lastWord).toMatchObject({ text: 'second answer', agentSpokeLast: true })
   })
 
+  it('does not take a running action for the agent having spoken last', () => {
+    const s = build([F.human('go'), F.assistant([F.text('Starting the build.'), F.tool('t9', 'Bash', { command: 'make', description: 'Build' })])])
+    expect(s.lastWord).toMatchObject({ agentSpokeLast: false, working: true })
+  })
+
   it('describes a shell command by its description and keeps its output for the person to open', () => {
     const s = build([F.human('go'), F.assistant([F.tool('t1', 'Bash', { command: 'make secret', description: 'Build the app' })]), F.result('t1', 'TOKEN=abc')])
     const a = s.now[0]
