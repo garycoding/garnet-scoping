@@ -161,6 +161,9 @@ input[type='search'] {
   display: grid;
   grid-template-columns: minmax(300px, 30%) 1fr minmax(240px, 22%);
 }
+.desk[hidden] {
+  display: none;
+}
 .desk > section {
   overflow: auto;
   padding: 12px 14px;
@@ -403,4 +406,39 @@ input[type='search'] {
 }
 .board[hidden] {
   display: none;
+}
+
+.tabs button.pending::after {
+  content: ' ●';
+  color: var(--accent);
+}
+.board {
+  display: flex;
+  flex-direction: column;
+}
+.board-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 14px;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+}
+.board-paths {
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.board-status {
+  color: var(--ok);
+}
+.board-status.error {
+  color: var(--error);
+}
+.board-canvas {
+  flex: 1;
+  min-height: 0;
+  position: relative;
 }
