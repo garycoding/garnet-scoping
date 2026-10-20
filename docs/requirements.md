@@ -108,7 +108,7 @@ R6.3. What the Desk shows can be traced to the records it was derived from, so t
 
 ### R7. The board
 
-R7.1. A session's window has a board beside its Desk: a whiteboard on which the person places shapes (rectangles, ellipses, diamonds), writes text in them, and joins them with lines and arrows. Freehand drawing is not part of the board.
+R7.1. A session's window has a board beside its Desk: a whiteboard on which the person places shapes (rectangles, ellipses, diamonds), writes text in them, and joins them with lines and arrows. Freehand drawing is not part of the board. Images are (R7.8).
 
 R7.2. The board is kept in an Excalidraw file per session (Excalidraw's format and editor are MIT), in a folder of the app's own outside every repository and outside the Claude configuration directory, at a path without spaces derived from the session's id. The window shows the path and copies it, so that the agent can be told where the board is.
 
@@ -121,6 +121,8 @@ R7.5. The person's edits and the agent's requests merge by element, so that neit
 R7.6. The board carries two signals from the person to the agent. **Editing** is a checkbox that any change the person makes to the board checks, and that the person unchecks when done, so the agent knows whether the board is still being changed. **Review** is a toggle the person turns on to ask the agent to read the board now, which also unchecks Editing; the agent turns it off, with its request, once it has read the board. Both are off by default, kept on disk beside the board, and stated at the head of the rendition.
 
 R7.7. The person's signals (Review, Discuss, Hold) reach the agent without a message from the person. Two routes are provided. A **watcher**, a shell script the agent runs in the background in every session, started by a SessionStart hook and governed by a rule in the person's `~/.claude/CLAUDE.md`, exits when a signal appears. A **channel**, an MCP server shipped in the app and run by Claude Code over stdio with the app's own binary, pushes each signal into the session the moment it appears; Claude Code loads channels only in terminal sessions started with it, as a research preview, so the watcher remains for the desktop app until that changes. The app's **Set-up Info** window gives the person copyable text that has Claude install the watcher, the hook and the rule, and the command that starts a terminal session with the channel. The channel uses Node's standard library only and opens no network connection.
+
+R7.8. The board takes images: the person drops or pastes one, or places it with the image tool; the agent adds one by naming an image file in a request (`{"kind": "image", "path": "…"}`), scaled to at most 480 points on its longer side unless a width is given. Each image is kept in the board file, as the editor needs, and written once as its own file in a folder beside the board (`<session>.files/`), so that the agent can open it; the rendition lists each image with its position, size and file. PNG, JPEG, GIF, WebP and SVG are taken, up to 20 MB each.
 
 ## Proposed and settled
 

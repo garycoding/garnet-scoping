@@ -35,11 +35,30 @@ const boardFullLayout = {
   },
 }
 
+// Images keep their own colours. In its dark theme Excalidraw draws images
+// through an inverting filter, to cancel the inversion of its whole canvas;
+// the board turns that canvas inversion off (its own colours, in style.css),
+// so the image filter is turned off too. The build fails if the filter is not
+// found, so that an Excalidraw update cannot silently invert images again.
+const IMAGE_INVERT = 'invert(100%) hue-rotate(180deg) saturate(1.25)'
+let imageFilterFound = false
+const boardImageColours = {
+  name: 'board-image-colours',
+  transform(code, id) {
+    if (!id.includes('@excalidraw/excalidraw/dist/') || !code.includes(IMAGE_INVERT)) return null
+    imageFilterFound = true
+    return { code: code.split(IMAGE_INVERT).join('none'), map: null }
+  },
+  buildEnd() {
+    if (!imageFilterFound) this.error(`board-image-colours: Excalidraw's image filter (${IMAGE_INVERT}) was not found`)
+  },
+}
+
 export default defineConfig({
   main: { build: { externalizeDeps: false } },
   preload: { build: { externalizeDeps: false } },
   renderer: {
-    plugins: [excalidrawFonts, boardFullLayout],
+    plugins: [excalidrawFonts, boardFullLayout, boardImageColours],
     build: {
       rollupOptions: {
         input: { index: resolve('src/renderer/index.html'), session: resolve('src/renderer/session.html'), settings: resolve('src/renderer/settings.html') },

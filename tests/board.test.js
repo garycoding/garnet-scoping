@@ -189,4 +189,32 @@ describe('the board on disk', () => {
     expect(await readFile(b.paths.rendition, 'utf8')).toMatch(/^Hold: no$/m)
     b.close()
   })
+
+  it('keeps images: in the board file, as files the agent can open, and in the rendition', async () => {
+    const b = openBoard('s9', { dir, onRequest() {}, onExternal() {} })
+    const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
+    const img = { id: 'pic', type: 'image', fileId: 'f1', x: 5, y: 6, width: 100, height: 50, version: 1 }
+    await b.save({ elements: [img], files: { f1: { id: 'f1', mimeType: 'image/png', dataURL: `data:image/png;base64,${png}` }, stale: { id: 'stale', mimeType: 'image/png', dataURL: 'data:image/png;base64,AA==' } } })
+    const data = JSON.parse(await readFile(b.paths.board, 'utf8'))
+    expect(Object.keys(data.files)).toEqual(['f1'])
+    const out = join(b.paths.files, 'f1.png')
+    expect((await readFile(out)).toString('base64')).toBe(png)
+    expect(await readFile(b.paths.rendition, 'utf8')).toContain(`- [pic] image at (5, 6) 100×50: ${out}`)
+    b.close()
+  })
+
+  it('reads an image the agent names by path, and reports one it cannot use', async () => {
+    const got = []
+    const b = openBoard('s10', { dir, onRequest: (r) => got.push(r), onExternal() {} })
+    b.ready()
+    const pic = join(dir, 'shot.png')
+    await writeFile(pic, Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64'))
+    await writeFile(b.paths.request, JSON.stringify({ add: [{ id: 'a', kind: 'image', path: pic }, { id: 'b', kind: 'image', path: join(dir, 'notes.txt') }] }))
+    await until(() => got.length > 0)
+    const [a, bad] = got[0].request.add
+    expect(a.mimeType).toBe('image/png')
+    expect(a.dataURL).toMatch(/^data:image\/png;base64,iVBOR/)
+    expect(bad.error).toMatch(/not an image/)
+    b.close()
+  })
 })
