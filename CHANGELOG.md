@@ -4,6 +4,18 @@ All notable changes to this project are recorded here.
 
 ## [Unreleased]
 
+## [v0.3.0] - 2026-10-19
+
+### Highlights
+
+_Highlights were not generated for this release._
+
+### Features
+
+- Mark rows of the Desk to discuss (#23)
+- Hold, to stop the agent after its current step (#24)
+- The channel, and Set-up Info for the watcher (#25)
+
 ## [v0.2.2] - 2026-10-19
 
 ### Highlights
