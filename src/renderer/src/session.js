@@ -320,7 +320,7 @@ function renderForYou() {
         const extra = f.exists
           ? [
               ['Open in its default app', () => window.garnet.openFile(f.path)],
-              ['Show in the Finder', () => window.garnet.showInFinder(f.path)],
+              [`Show in ${window.garnet.fileManager}`, () => window.garnet.showInFinder(f.path)],
             ]
           : []
         files.append(markable(tile, row, f.exists ? () => previewFile(f.path, row) : null, extra))
@@ -353,7 +353,7 @@ async function previewFile(path, row) {
   const bar = el('div', 'preview-bar')
   for (const [label, act] of [
     ['Open in its default app', () => window.garnet.openFile(path)],
-    ['Show in the Finder', () => window.garnet.showInFinder(path)],
+    [`Show in ${window.garnet.fileManager}`, () => window.garnet.showInFinder(path)],
     ['Discuss…', () => askNote(row)],
   ]) {
     const b = el('button', null, label)
@@ -449,7 +449,7 @@ function renderFacts() {
   if (f.cwd) {
     const a = el('a', null, f.cwd)
     a.href = '#'
-    a.title = 'Show in the Finder'
+    a.title = `Show in ${window.garnet.fileManager}`
     a.addEventListener('click', (e) => {
       e.preventDefault()
       window.garnet.showInFinder(f.cwd)
