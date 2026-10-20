@@ -7,7 +7,7 @@
 // for a review). The window edits the board; this module saves it atomically,
 // keeps the rendition current, and passes on requests and outside changes.
 
-import { mkdir, readFile, writeFile, rename, unlink } from 'node:fs/promises'
+import { mkdir, readFile, writeFile, rename, unlink, stat, access } from 'node:fs/promises'
 import { watch } from 'node:fs'
 import { join } from 'node:path'
 import { homedir } from 'node:os'
@@ -25,7 +25,27 @@ export const boardPaths = (id, dir = BOARDS) => ({
   rendition: join(dir, `${id}.board.md`),
   request: join(dir, `${id}.request.json`),
   state: join(dir, `${id}.state.json`),
+  files: join(dir, `${id}.files`),
 })
+
+// Images on the board (R7.8): kept in the board file, as the editor needs,
+// and also written out one file each, so that the agent can open them.
+const IMAGE_TYPES = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', svg: 'image/svg+xml' }
+const EXTENSIONS = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/gif': 'gif', 'image/webp': 'webp', 'image/svg+xml': 'svg' }
+const MAX_IMAGE_BYTES = 20 * 1024 * 1024
+const safeId = (s) => String(s).replace(/[^A-Za-z0-9_-]/g, '_')
+export const imageFile = (filesDir, fileId, mimeType) => join(filesDir, `${safeId(fileId)}.${EXTENSIONS[mimeType] ?? 'bin'}`)
+
+// Reads an image the agent names in a request, as a data URL.
+export async function readImage(path) {
+  const ext = String(path).split('.').pop().toLowerCase()
+  const mimeType = IMAGE_TYPES[ext]
+  if (!mimeType) throw new Error(`not an image this board takes (png, jpg, gif, webp or svg): ${path}`)
+  const info = await stat(path)
+  if (info.size > MAX_IMAGE_BYTES) throw new Error(`image larger than 20 MB: ${path}`)
+  const data = await readFile(path)
+  return { mimeType, dataURL: `data:${mimeType};base64,${data.toString('base64')}` }
+}
 
 // The person's signals to the agent: editing and a review asked for (R7.6),
 // the rows of the Desk they want to discuss (R2.7), and a hold (R2.8): the
@@ -68,13 +88,13 @@ const hash = (s) => createHash('sha1').update(s).digest('hex')
 
 async function writeAtomic(path, text) {
   const tmp = `${path}.${process.pid}.tmp`
-  await writeFile(tmp, text, 'utf8')
+  await writeFile(tmp, text, typeof text === 'string' ? 'utf8' : undefined)
   await rename(tmp, path)
 }
 
 // The board as text (R7.3): each shape with its id, kind, text and position,
 // each connection as "A → B", and free text, preceded by how to change it.
-export function rendition(elements, { title = null, requestPath = '', statePath = '', state = NO_STATE } = {}) {
+export function rendition(elements, { title = null, requestPath = '', statePath = '', state = NO_STATE, imagePath = null } = {}) {
   const live = elements.filter((e) => !e.isDeleted)
   const byId = new Map(live.map((e) => [e.id, e]))
   const textOf = (e) => {
@@ -108,7 +128,8 @@ export function rendition(elements, { title = null, requestPath = '', statePath 
     'This file is written by garnet-scoping whenever the board changes; do not edit it.',
     `To change the board, write a request to ${requestPath || '<id>.request.json'} as JSON:`,
     '{ "add": [ { "id": "a", "kind": "rectangle|ellipse|diamond|text", "text": "…", "x": 0, "y": 0 },',
-    '           { "kind": "arrow|line", "from": "a", "to": "b", "text": "optional label" } ],',
+    '           { "kind": "arrow|line", "from": "a", "to": "b", "text": "optional label" },',
+    '           { "id": "i", "kind": "image", "path": "/absolute/path.png", "x": 0, "y": 0, "width": 400 } ],',
     '  "relabel": [ { "id": "a", "text": "…" } ], "remove": [ "id" ], "reviewed": true }',
     'Positions are optional; shapes without one are placed to the right of the board. The app applies the request and deletes the file.',
     'When a review is requested and you have read the board, include "reviewed": true (alone, or with changes): it turns the Review button off.',
@@ -135,7 +156,12 @@ export function rendition(elements, { title = null, requestPath = '', statePath 
     lines.push('', '## Free text')
     for (const e of free) lines.push(`- [${e.id}] "${(e.originalText ?? e.text).replace(/\n/g, ' ')}" at (${Math.round(e.x)}, ${Math.round(e.y)})`)
   }
-  const other = live.filter((e) => !SHAPES.has(e.type) && e.type !== 'text' && e.type !== 'arrow' && e.type !== 'line')
+  const images = live.filter((e) => e.type === 'image')
+  if (images.length) {
+    lines.push('', '## Images')
+    for (const e of images) lines.push(`- [${e.id}] image at ${pos(e)}${imagePath && e.fileId ? `: ${imagePath(e.fileId)}` : ''}`)
+  }
+  const other = live.filter((e) => !SHAPES.has(e.type) && e.type !== 'text' && e.type !== 'arrow' && e.type !== 'line' && e.type !== 'image')
   if (other.length) lines.push('', `## Other`, `- ${other.length} element(s) of other kinds (${[...new Set(other.map((e) => e.type))].join(', ')}), not described here.`)
   return lines.join('\n') + '\n'
 }
@@ -177,15 +203,20 @@ export function openBoard(id, { title = null, dir = BOARDS, onRequest, onExterna
       lastWritten = hash(text)
       const data = JSON.parse(text)
       if (Array.isArray(data.elements)) lastElements = data.elements
+      fileTypes = new Map(Object.values(data.files ?? {}).map((f) => [f.id, f.mimeType]))
       return data
     } catch {
       return null
     }
   }
 
+  // The files of the images on the board, by file id.
+  let fileTypes = new Map()
+  const imagePath = (fileId) => (fileTypes.has(fileId) ? imageFile(p.files, fileId, fileTypes.get(fileId)) : null)
+
   async function writeRendition() {
     if (!lastElements) await load()
-    await writeAtomic(p.rendition, rendition(lastElements ?? [], { title, requestPath: p.request, statePath: p.state, state }))
+    await writeAtomic(p.rendition, rendition(lastElements ?? [], { title, requestPath: p.request, statePath: p.state, state, imagePath }))
   }
 
   // The window reports the person's signals; the agent's "reviewed" clears
@@ -209,12 +240,25 @@ export function openBoard(id, { title = null, dir = BOARDS, onRequest, onExterna
 
   async function save(scene) {
     await mkdir(dir, { recursive: true })
-    const text = JSON.stringify({ type: 'excalidraw', version: 2, source: 'garnet-scoping', style: 'plain', elements: scene.elements, appState: { viewBackgroundColor: scene.background ?? '#0b1226' }, files: {} }, null, 2)
+    // Only the files of images still on the board are kept.
+    const used = new Set(scene.elements.filter((e) => e.type === 'image' && !e.isDeleted && e.fileId).map((e) => e.fileId))
+    const files = Object.fromEntries(Object.entries(scene.files ?? {}).filter(([fid, f]) => used.has(fid) && typeof f?.dataURL === 'string'))
+    const text = JSON.stringify({ type: 'excalidraw', version: 2, source: 'garnet-scoping', style: 'plain', elements: scene.elements, appState: { viewBackgroundColor: scene.background ?? '#0b1226' }, files }, null, 2)
     lastWritten = hash(text)
     lastElements = scene.elements
     await writeAtomic(p.board, text)
+    fileTypes = new Map(Object.values(files).map((f) => [f.id, f.mimeType]))
+    for (const f of Object.values(files)) {
+      const out = imageFile(p.files, f.id, f.mimeType)
+      const exists = await access(out).then(() => true, () => false)
+      if (exists) continue
+      const m = /^data:[^;]+;base64,(.*)$/s.exec(f.dataURL)
+      if (!m) continue
+      await mkdir(p.files, { recursive: true })
+      await writeAtomic(out, Buffer.from(m[1], 'base64'))
+    }
     await stateLoaded
-    await writeAtomic(p.rendition, rendition(scene.elements, { title, requestPath: p.request, statePath: p.state, state }))
+    await writeAtomic(p.rendition, rendition(scene.elements, { title, requestPath: p.request, statePath: p.state, state, imagePath }))
   }
 
   // The person marks a row to discuss, withdraws a mark, or dismisses an
@@ -270,7 +314,20 @@ export function openBoard(id, { title = null, dir = BOARDS, onRequest, onExterna
         ...(holding ? { hold: 'holding' } : {}),
       })
     }
-    if (changes) onRequest({ request: req })
+    if (changes) {
+      // An image the agent adds by path is read here and passed on as data.
+      if (Array.isArray(req.add)) {
+        for (const a of req.add) {
+          if (a?.kind !== 'image') continue
+          try {
+            Object.assign(a, await readImage(String(a.path ?? '')))
+          } catch (err) {
+            a.error = err.message
+          }
+        }
+      }
+      onRequest({ request: req })
+    }
   }
 
   async function checkBoard() {
