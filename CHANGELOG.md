@@ -4,6 +4,16 @@ All notable changes to this project are recorded here.
 
 ## [Unreleased]
 
+## [v0.6.1] - 2026-10-20
+
+### Highlights
+
+_Highlights were not generated for this release._
+
+### Bug fixes
+
+- A resumed or forked session takes over its board (#43)
+
 ## [v0.6.0] - 2026-10-19
 
 ### Highlights
