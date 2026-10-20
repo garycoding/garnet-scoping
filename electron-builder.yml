@@ -12,6 +12,8 @@ files:
   - '!src/**'
   - '!docs/**'
   - '!scripts/**'
+  - '!channel/**'
+  - '!setup/**'
   - '!tests/**'
   - '!.github/**'
   - '!LICENSES/**'
@@ -31,6 +33,15 @@ extraResources:
   - from: legal
     to: legal
     filter: ['**/*']
+  # The channel server (README, "The channel"): run by Claude Code with the
+  # app's own binary in Node mode, so it needs no separate Node install.
+  - from: channel
+    to: channel
+    filter: ['*.mjs']
+  # What Set-up Info has Claude install: the watcher, its hook and the rule.
+  - from: setup
+    to: setup
+    filter: ['*.sh', '*.md']
 publish:
   provider: github
   owner: garycoding
