@@ -16,11 +16,30 @@ const excalidrawFonts = {
   },
 }
 
+// The board keeps its full layout (tools, style panel and zoom in place) at
+// any size. Excalidraw switches to a compact phone layout when its area is
+// narrower than about 730 px, which a board on the left or right half of the
+// window often is. Its breakpoint test is replaced by one that never reports
+// a phone; the build fails if the test is not found, so that an Excalidraw
+// update cannot silently bring the compact layout back.
+const boardFullLayout = {
+  name: 'board-full-layout',
+  transform(code, id) {
+    if (!id.includes('@excalidraw/excalidraw/dist/') || !code.includes('isMobileBreakpoint')) return null
+    const marker = /(["']isMobileBreakpoint["'],\s*)/g
+    const count = (code.match(marker) ?? []).length
+    if (count !== 1) this.error(`board-full-layout: expected one isMobileBreakpoint definition in ${id}, found ${count}`)
+    // The helper that defines the field takes three arguments; the original
+    // function becomes an ignored fourth.
+    return { code: code.replace(marker, '$1() => false, '), map: null }
+  },
+}
+
 export default defineConfig({
   main: { build: { externalizeDeps: false } },
   preload: { build: { externalizeDeps: false } },
   renderer: {
-    plugins: [excalidrawFonts],
+    plugins: [excalidrawFonts, boardFullLayout],
     build: {
       rollupOptions: {
         input: { index: resolve('src/renderer/index.html'), session: resolve('src/renderer/session.html'), settings: resolve('src/renderer/settings.html') },
