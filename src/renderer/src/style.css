@@ -470,6 +470,29 @@ input[type='search'] {
   display: flex;
   flex-direction: column;
 }
+.board-signals {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+  padding-right: 10px;
+  border-right: 1px solid var(--line);
+}
+.board-editing {
+  white-space: nowrap;
+  cursor: pointer;
+}
+.board-editing input {
+  accent-color: var(--accent);
+  vertical-align: -2px;
+}
+/* Review lit: the person is waiting for the agent to read the board. */
+.board-review.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  box-shadow: 0 0 8px var(--accent);
+}
 .board-head button {
   flex: none;
   white-space: nowrap;

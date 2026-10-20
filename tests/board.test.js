@@ -4,7 +4,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtemp, rm, readFile, writeFile, readdir } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { rendition, mergeElements, openBoard } from '../src/main/board.js'
+import { rendition, mergeElements, openBoard, cleanState } from '../src/main/board.js'
 
 const shape = (id, type, text, extra = {}) => [
   { id, type, x: 10, y: 20, width: 180, height: 80, version: 1, boundElements: [{ id: `${id}-t`, type: 'text' }], ...extra },
@@ -85,5 +85,63 @@ describe('the board on disk', () => {
     await until(() => got.length > 0)
     expect(got[0].error).toMatch(/not valid JSON/)
     b.close()
+  })
+
+  it('keeps the person’s signals on disk and states them at the head of the rendition', async () => {
+    const states = []
+    const b = openBoard('s4', { dir, onRequest() {}, onExternal() {}, onState: (st) => states.push(st) })
+    await b.save({ elements: shape('a', 'rectangle', 'One') })
+    expect(await readFile(b.paths.rendition, 'utf8')).toMatch(/^Editing: no$/m)
+    await b.setState({ editing: true })
+    await b.setState({ review: true })
+    const saved = JSON.parse(await readFile(b.paths.state, 'utf8'))
+    expect(saved.editing).toBe(true)
+    expect(saved.review).toBe(true)
+    expect(saved.reviewAt).toMatch(/^\d{4}-\d\d-\d\dT/)
+    const text = await readFile(b.paths.rendition, 'utf8')
+    expect(text).toMatch(/^Editing: yes/m)
+    expect(text).toMatch(/^Review: requested at /m)
+    expect(text).toContain('"One"')
+    expect(states.at(-1).review).toBe(true)
+    b.close()
+    // A board reopened keeps its state.
+    const again = openBoard('s4', { dir, onRequest() {}, onExternal() {} })
+    expect((await again.state()).review).toBe(true)
+    again.close()
+  })
+
+  it('clears a review on a bare "reviewed" request, even before the board is shown', async () => {
+    const states = []
+    const got = []
+    const b = openBoard('s5', { dir, onRequest: (r) => got.push(r), onExternal() {}, onState: (st) => states.push(st) })
+    await b.setState({ review: true })
+    await writeFile(b.paths.request, JSON.stringify({ reviewed: true }))
+    await until(() => states.length > 1)
+    expect(states.at(-1).review).toBe(false)
+    expect(got).toEqual([])
+    await expect(readFile(b.paths.request)).rejects.toThrow()
+    expect(await readFile(b.paths.rendition, 'utf8')).toMatch(/^Review: not requested$/m)
+    b.close()
+  })
+
+  it('applies "reviewed" with changes once the board is ready', async () => {
+    const states = []
+    const got = []
+    const b = openBoard('s6', { dir, onRequest: (r) => got.push(r), onExternal() {}, onState: (st) => states.push(st) })
+    await b.setState({ review: true })
+    const req = { add: [{ id: 'q', kind: 'rectangle', text: 'Q' }], reviewed: true }
+    await writeFile(b.paths.request, JSON.stringify(req))
+    await new Promise((r) => setTimeout(r, 300))
+    expect(states.at(-1).review).toBe(true)
+    b.ready()
+    await until(() => got.length > 0)
+    expect(got[0].request).toEqual(req)
+    expect(states.at(-1).review).toBe(false)
+    b.close()
+  })
+
+  it('cleans a state read from disk', () => {
+    expect(cleanState({ editing: 'yes', review: true, reviewAt: 5, x: 1 })).toEqual({ editing: false, review: true, reviewAt: null })
+    expect(cleanState(null)).toEqual({ editing: false, review: false, reviewAt: null })
   })
 })
