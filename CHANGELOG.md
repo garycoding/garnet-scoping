@@ -4,6 +4,21 @@ All notable changes to this project are recorded here.
 
 ## [Unreleased]
 
+## [v0.2.0] - 2026-10-19
+
+### Highlights
+
+_Highlights were not generated for this release._
+
+### Features
+
+- Desk, Trail, Memory and Board as panels turned on and off (#16)
+- Editing and Review signals on the board (#17)
+
+### Bug fixes
+
+- Render the Last word as Markdown (#15)
+
 ## [v0.1.2] - 2026-10-19
 
 ### Highlights
