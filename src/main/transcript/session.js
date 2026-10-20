@@ -69,6 +69,7 @@ export function describeAction(name, input = {}) {
 // recap, not as actions.
 const PLAN_TOOLS = new Set(['mcp__ccd_turn__update_plan', 'TodoWrite', 'TaskCreate', 'TaskUpdate'])
 const WRAP_TOOL = 'mcp__ccd_turn__wrap_up'
+const DELIVER_TOOL = 'SendUserFile'
 
 export function createSession(id = null) {
   const s = {
@@ -90,6 +91,7 @@ export function createSession(id = null) {
     turns: [],
     plan: { source: null, items: [] },
     background: new Map(), // task id -> { id, text, startedAt, finishedAt, status }
+    deliveries: [], // files the agent sent the person: { id, files, caption, at }
     pending: new Map(), // tool-use id -> action awaiting its result
     unknown: new Map(), // record type -> count
     bad: 0,
@@ -189,6 +191,13 @@ export function createSession(id = null) {
               applyPlanTool(part, r.at)
               if (part.name === 'TaskCreate') s.pending.set(part.id, { planCreate: true })
               continue
+            }
+            // Files sent to the person (the desktop app's file cards) are
+            // kept as deliveries, as well as shown as an action.
+            if (part.name === DELIVER_TOOL && Array.isArray(part.input?.files)) {
+              const cwd = s.facts.cwd
+              const abs = (p) => (String(p).startsWith('/') ? String(p) : cwd ? `${cwd}/${p}` : String(p))
+              s.deliveries.push({ id: part.id, files: part.input.files.map(abs), caption: part.input.caption ?? null, at: r.at })
             }
             if (part.name === WRAP_TOOL) {
               t.recap = part.input.recap ?? null
@@ -342,6 +351,7 @@ export function snapshot(s) {
     plan: { source: s.plan.source, items: s.plan.items.map(({ content, status }) => ({ content, status })), updatedAt: s.plan.updatedAt ?? null },
     now: actions,
     waiting: [...s.background.values()].filter((b) => b.status === 'running'),
+    deliveries: s.deliveries.slice(-50).reverse(),
     lastWord: last ? { text: last.closing, recap: last.recap, ask: last.ask, at: last.closingAt, agentSpokeLast, working: running } : null,
     touched: last ? { files: [...last.files], notes: [...last.notes] } : { files: [], notes: [] },
     turns: turns.map((t) => ({

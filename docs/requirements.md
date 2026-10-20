@@ -70,6 +70,8 @@ R2.7. **Discuss:** the person can mark any row of Plan, Now, Trail or Memory to 
 
 R2.8. **Hold:** a button on the window's header lets the person ask the agent to stop after its current step. The request shows as "Hold requested"; the agent finishes the step it is in, starts no other, and confirms with `"holding": true` in a request, after which the button shows "Holding"; the person releases the hold with the same button. Nothing the agent is running is cancelled. The hold is kept in the session's state file and stated at the head of the board's rendition; only the agent can confirm a hold, and only the person can request or release one.
 
+R2.9. **For you:** the files the agent has sent the person in this session (the desktop app's file cards), newest first, each with its caption and time, a thumbnail for an image, a click to open the file and a right-click to show it in the Finder. A file no longer on disk is shown as gone; a file overwritten since it was sent shows its present content.
+
 ### R3. The trail
 
 R3.1. Beneath the present state, the session turn by turn, newest at the bottom: each turn shows the person's message (with its images), the agent's actions in order with their descriptions, the files and notes touched, and the agent's closing message or recap.

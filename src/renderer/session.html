@@ -4,7 +4,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: file:" />
     <title>Desk</title>
     <link rel="stylesheet" href="./src/style.css" />
   </head>
@@ -26,6 +26,7 @@
         <div class="card"><h2>Now</h2><ul id="now" class="actions"></ul></div>
         <div class="card"><h2>Waiting</h2><ul id="waiting" class="actions"></ul></div>
         <div class="card"><h2>Last word</h2><div id="last-word"></div></div>
+        <div class="card"><h2>For you</h2><div id="for-you"></div></div>
         <div class="card"><h2>Touched this turn</h2><div id="touched"></div></div>
       </section>
       <section id="pane-trail" class="trail-col">
