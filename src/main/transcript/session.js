@@ -194,6 +194,12 @@ export function createSession(id = null) {
               t.recap = part.input.recap ?? null
               t.ask = part.input.ask ?? null
               t.closingAt = r.at
+              // The desktop app's wrap-up also checks off its task list,
+              // without a further plan update in the transcript.
+              if (s.plan.source === 'app') {
+                for (const it of s.plan.items) it.status = 'completed'
+                s.plan.updatedAt = r.at
+              }
               continue
             }
             if (part.name === 'TaskStop' || part.name === 'KillShell') {
