@@ -7,7 +7,7 @@
 // for a review). The window edits the board; this module saves it atomically,
 // keeps the rendition current, and passes on requests and outside changes.
 
-import { mkdir, readFile, writeFile, rename, unlink, stat, access } from 'node:fs/promises'
+import { mkdir, readFile, writeFile, rename, unlink, stat, access, cp } from 'node:fs/promises'
 import { watch } from 'node:fs'
 import { join } from 'node:path'
 import { homedir } from 'node:os'
@@ -180,12 +180,55 @@ export function mergeElements(current, incoming) {
   return [...out.values()]
 }
 
+// A session that continues an earlier one (resumed or forked under a new
+// id) takes over that session's board once, by copy: its drawing and images,
+// and the Discuss marks already settled (turned off or answered). Signals
+// still open stay with the session they were given to. The first earlier
+// session, most recent first, that has a drawing is the one used. Returns
+// its id, or null when nothing was inherited (or it had been already).
+export async function inheritBoard(id, ancestors, dir = BOARDS) {
+  const p = boardPaths(id, dir)
+  const readJson = async (f) => {
+    try {
+      return JSON.parse(await readFile(f, 'utf8'))
+    } catch {
+      return null
+    }
+  }
+  const own = await readJson(p.board)
+  if (own?.inheritedFrom !== undefined) return null
+  const live = (els) => (Array.isArray(els) ? els.filter((e) => !e.isDeleted) : [])
+  for (const anc of ancestors ?? []) {
+    const ap = boardPaths(anc, dir)
+    const theirs = await readJson(ap.board)
+    if (!live(theirs?.elements).length) continue
+    const elements = mergeElements(own?.elements ?? [], theirs.elements)
+    const files = { ...(theirs.files ?? {}), ...(own?.files ?? {}) }
+    const data = { ...(theirs ?? {}), ...(own ?? {}), elements, files, inheritedFrom: anc, source: 'garnet-scoping', style: 'plain' }
+    await mkdir(dir, { recursive: true })
+    await writeAtomic(p.board, JSON.stringify(data, null, 2))
+    await cp(ap.files, p.files, { recursive: true, force: false, errorOnExist: false }).catch(() => {})
+    const ownState = cleanState(await readJson(p.state))
+    const settled = cleanState(await readJson(ap.state)).discuss.filter((m) => m.status !== 'open' && !ownState.discuss.some((o) => o.id === m.id))
+    const state = { ...ownState, discuss: [...settled, ...ownState.discuss] }
+    if (settled.length) await writeAtomic(p.state, JSON.stringify(state, null, 2))
+    // The rendition at once, so that the agent can read the board it now has.
+    const types = new Map(Object.values(files).map((f) => [f.id, f.mimeType]))
+    const imagePath = (fid) => (types.has(fid) ? imageFile(p.files, fid, types.get(fid)) : null)
+    await writeAtomic(p.rendition, rendition(elements, { requestPath: p.request, statePath: p.state, state, imagePath }))
+    return anc
+  }
+  return null
+}
+
 // One session's board: load, save, and watch for requests and outside edits.
 export function openBoard(id, { title = null, dir = BOARDS, onRequest, onExternal, onPending, onState }) {
   const p = boardPaths(id, dir)
   let lastWritten = null
   // The elements the rendition was last written from, and the board's state.
   let lastElements = null
+  // The earlier session this board was continued from, kept across saves.
+  let inheritedFrom = null
   let state = { ...NO_STATE }
   const stateLoaded = readFile(p.state, 'utf8').then(
     (t) => {
@@ -206,6 +249,7 @@ export function openBoard(id, { title = null, dir = BOARDS, onRequest, onExterna
       lastWritten = hash(text)
       const data = JSON.parse(text)
       if (Array.isArray(data.elements)) lastElements = data.elements
+      inheritedFrom = data.inheritedFrom ?? null
       fileTypes = new Map(Object.values(data.files ?? {}).map((f) => [f.id, f.mimeType]))
       return data
     } catch {
@@ -246,7 +290,7 @@ export function openBoard(id, { title = null, dir = BOARDS, onRequest, onExterna
     // Only the files of images still on the board are kept.
     const used = new Set(scene.elements.filter((e) => e.type === 'image' && !e.isDeleted && e.fileId).map((e) => e.fileId))
     const files = Object.fromEntries(Object.entries(scene.files ?? {}).filter(([fid, f]) => used.has(fid) && typeof f?.dataURL === 'string'))
-    const text = JSON.stringify({ type: 'excalidraw', version: 2, source: 'garnet-scoping', style: 'plain', elements: scene.elements, appState: { viewBackgroundColor: scene.background ?? '#0b1226' }, files }, null, 2)
+    const text = JSON.stringify({ type: 'excalidraw', version: 2, source: 'garnet-scoping', style: 'plain', ...(inheritedFrom ? { inheritedFrom } : {}), elements: scene.elements, appState: { viewBackgroundColor: scene.background ?? '#0b1226' }, files }, null, 2)
     lastWritten = hash(text)
     lastElements = scene.elements
     await writeAtomic(p.board, text)

@@ -30,6 +30,8 @@ Each session's board lives in `~/.garnet-scoping/boards/`, named by the session'
 - `<id>.board.md` is its rendition as text, rewritten on every change: each shape with its id, kind, text, position and size, and each connection as "A → B". It begins with the instructions below, so an agent given only this path has what it needs.
 - `<id>.request.json` is written by the agent to change the board. The app applies it and deletes it.
 
+When a conversation is resumed or forked under a new session id, the new session's board takes over the earlier one's drawing, by copy, the first time its window opens; the earlier board is left as it was.
+
 Images dropped or pasted onto the board are kept in the board file and written, one file each, to `<id>.files/`; the rendition lists each image with the path of its file, so the agent can open it. The agent adds an image with `{ "kind": "image", "path": "/absolute/path.png" }` in a request (PNG, JPEG, GIF, WebP or SVG, up to 20 MB), optionally with a position and a width.
 
 A request adds, relabels or removes elements; shapes need no position, and connections name their ends by id:
