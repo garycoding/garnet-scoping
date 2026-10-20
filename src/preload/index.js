@@ -12,6 +12,11 @@ contextBridge.exposeInMainWorld('garnet', {
   listMemory: () => ipcRenderer.invoke('memory:list'),
   readMemory: (path) => ipcRenderer.invoke('memory:read', path),
   showInFinder: (path) => ipcRenderer.invoke('finder:show', path),
+  settings: {
+    get: () => ipcRenderer.invoke('settings:get'),
+    set: (s) => ipcRenderer.invoke('settings:set', s),
+    onChanged: (fn) => ipcRenderer.on('settings:changed', (_e, s) => fn(s)),
+  },
   board: {
     open: () => ipcRenderer.invoke('board:open'),
     save: (scene) => ipcRenderer.invoke('board:save', scene),

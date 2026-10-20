@@ -14,7 +14,9 @@ import { createHash } from 'node:crypto'
 
 const POLL_MS = 2000
 
-export const BOARDS = join(homedir(), '.garnet-scoping', 'boards')
+// GARNET_SCOPING_BOARDS points the app at another folder, so that a test run
+// never touches the person's boards.
+export const BOARDS = process.env.GARNET_SCOPING_BOARDS || join(homedir(), '.garnet-scoping', 'boards')
 
 export const boardPaths = (id, dir = BOARDS) => ({
   dir,

@@ -14,27 +14,29 @@
         <h1 id="title">Session</h1>
         <div id="facts" class="facts"></div>
       </div>
-      <nav class="tabs"><button id="tab-desk" class="active" type="button">Desk</button><button id="tab-board" type="button">Board</button></nav>
+      <nav class="tabs" aria-label="Panels"><button id="tog-desk" type="button" aria-pressed="false">Desk</button><button id="tog-trail" type="button" aria-pressed="false">Trail</button><button id="tog-memory" type="button" aria-pressed="false">Memory</button><button id="tog-board" type="button" aria-pressed="false">Board</button></nav>
     </header>
     <div id="drift" class="drift" hidden></div>
+    <div id="stage" class="stage board-right">
     <main id="desk" class="desk">
-      <section class="present">
+      <section id="pane-desk" class="present">
         <div class="card"><h2>Plan</h2><ol id="plan" class="plan"></ol></div>
         <div class="card"><h2>Now</h2><ul id="now" class="actions"></ul></div>
         <div class="card"><h2>Waiting</h2><ul id="waiting" class="actions"></ul></div>
         <div class="card"><h2>Last word</h2><div id="last-word"></div></div>
         <div class="card"><h2>Touched this turn</h2><div id="touched"></div></div>
       </section>
-      <section class="trail-col">
+      <section id="pane-trail" class="trail-col">
         <h2>Trail</h2>
         <div id="trail"></div>
       </section>
-      <section class="memory-col">
+      <section id="pane-memory" class="memory-col">
         <h2>Memory</h2>
         <div id="memory"></div>
       </section>
     </main>
     <main id="board" class="board" hidden></main>
+    </div>
     <div id="viewer" class="viewer" hidden><div class="viewer-box"><header><h3 id="viewer-title"></h3><button id="viewer-close" type="button">Close</button></header><div id="viewer-body"></div></div></div>
     <script type="module" src="./src/session.js"></script>
   </body>

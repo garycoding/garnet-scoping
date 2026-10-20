@@ -191,6 +191,11 @@ function mergeExternal(incoming) {
   replaceScene(restoreElements(straighten([...out.values()]), null))
 }
 
+// Tells the editor its container has changed size or place.
+export function refreshBoard() {
+  api?.refresh()
+}
+
 export async function mountBoard(container) {
   const info = await window.garnet.board.open()
   // The header: where the agent finds the rendition and writes requests.
