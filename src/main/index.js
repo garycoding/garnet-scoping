@@ -14,7 +14,7 @@ import { readFile, stat } from 'node:fs/promises'
 import { listSessions } from './transcript/sessions.js'
 import { listMemory } from './transcript/memory.js'
 import { follow } from './follower.js'
-import { openBoard } from './board.js'
+import { openBoard, inheritBoard } from './board.js'
 import { openAboutWindow, openLicensesWindow } from './about.js'
 import { loadSettings, saveSettings, clean } from './settings.js'
 import { openSetupInfo } from './setupInfo.js'
@@ -68,14 +68,24 @@ function openSession(info) {
   }
   const follower = follow(info.id, info.file, push)
   const send = (channel, payload) => !win.isDestroyed() && win.webContents.send(channel, payload)
-  const board = openBoard(info.id, {
-    title: info.title,
-    onRequest: (r) => send('board:request', r),
-    onExternal: (elements) => send('board:external', elements),
-    onPending: () => send('board:pending'),
-    onState: (state) => send('board:state', state),
-  })
-  windows.set(info.id, { win, follower, board, project: info.project, file: info.file })
+  const entry = { win, follower, board: null, project: info.project, file: info.file }
+  // A session that continues an earlier one takes over its board first
+  // (inheritBoard); the board is opened once that is settled.
+  entry.boardReady = follower.ready
+    .then(() => inheritBoard(info.id, follower.view().lineage))
+    .catch(() => null)
+    .then(() => {
+      entry.board = openBoard(info.id, {
+        title: info.title,
+        onRequest: (r) => send('board:request', r),
+        onExternal: (elements) => send('board:external', elements),
+        onPending: () => send('board:pending'),
+        onState: (state) => send('board:state', state),
+      })
+      if (win.isDestroyed()) entry.board.close()
+      return entry.board
+    })
+  windows.set(info.id, entry)
   load(win, 'session', { id: info.id })
   // A link in rendered text opens in the system's browser; the window itself
   // never navigates away from the app's page.
@@ -86,7 +96,7 @@ function openSession(info) {
     openLink(url)
   })
   win.on('closed', () => {
-    board.close()
+    entry.board?.close()
     follower.close()
     windows.delete(info.id)
   })
@@ -140,16 +150,19 @@ function registerIpc() {
   })
   ipcMain.handle('board:open', async (e) => {
     const w = entryOf(e)
-    return w ? { paths: w.board.paths, scene: await w.board.load(), state: await w.board.state() } : null
+    if (!w) return null
+    const board = await w.boardReady
+    const scene = await board.load()
+    return { paths: board.paths, scene, state: await board.state(), inheritedFrom: scene?.inheritedFrom ?? null }
   })
   // The window may ask for a hold or release one; only the agent confirms it.
   ipcMain.handle('board:set-state', (e, next) => {
     const { hold, ...rest } = next ?? {}
-    return entryOf(e)?.board.setState(hold === 'requested' || hold === 'off' ? { ...rest, hold } : rest)
+    return entryOf(e)?.boardReady.then((b) => b.setState(hold === 'requested' || hold === 'off' ? { ...rest, hold } : rest))
   })
-  ipcMain.handle('session:discuss', (e, op) => entryOf(e)?.board.discuss(op))
-  ipcMain.handle('board:save', (e, scene) => entryOf(e)?.board.save(scene))
-  ipcMain.handle('board:ready', (e) => entryOf(e)?.board.ready())
+  ipcMain.handle('session:discuss', (e, op) => entryOf(e)?.boardReady.then((b) => b.discuss(op)))
+  ipcMain.handle('board:save', (e, scene) => entryOf(e)?.boardReady.then((b) => b.save(scene)))
+  ipcMain.handle('board:ready', (e) => entryOf(e)?.boardReady.then((b) => b.ready()))
   // Files the agent delivered in this session: opened with their default
   // app, or read for the in-app preview. Only delivered files are served.
   const delivered = (e, p) => {

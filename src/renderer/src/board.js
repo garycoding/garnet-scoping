@@ -260,7 +260,7 @@ export async function mountBoard(container) {
   head.className = 'board-head'
   const paths = document.createElement('span')
   paths.className = 'board-paths mono'
-  paths.textContent = `${info.paths.rendition}`
+  paths.textContent = info.inheritedFrom ? `Continued from session ${info.inheritedFrom.slice(0, 8)} · ${info.paths.rendition}` : `${info.paths.rendition}`
   paths.title = 'The rendition the agent reads; it changes the board by writing a request beside it.'
   const copy = document.createElement('button')
   copy.type = 'button'

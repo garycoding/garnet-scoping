@@ -92,6 +92,9 @@ export function createSession(id = null) {
     plan: { source: null, items: [] },
     background: new Map(), // task id -> { id, text, startedAt, finishedAt, status }
     deliveries: [], // files the agent sent the person: { id, files, caption, at }
+    // Earlier sessions this one continues: a resumed or forked conversation
+    // begins with the earlier records, which keep their own session id.
+    lineage: [],
     pending: new Map(), // tool-use id -> action awaiting its result
     unknown: new Map(), // record type -> count
     bad: 0,
@@ -153,6 +156,8 @@ export function createSession(id = null) {
 
   function apply(raw) {
     s.records += 1
+    const sid = raw?.sessionId
+    if (s.id && typeof sid === 'string' && sid !== s.id && s.lineage.at(-1) !== sid && !s.lineage.includes(sid)) s.lineage.push(sid)
     const r = classify(raw)
     const f = s.facts
     if (r.sidechain) return r
@@ -352,6 +357,8 @@ export function snapshot(s) {
     now: actions,
     waiting: [...s.background.values()].filter((b) => b.status === 'running'),
     deliveries: s.deliveries.slice(-50).reverse(),
+    // The earlier sessions, the most recent first.
+    lineage: [...s.lineage].reverse(),
     lastWord: last ? { text: last.closing, recap: last.recap, ask: last.ask, at: last.closingAt, agentSpokeLast, working: running } : null,
     touched: last ? { files: [...last.files], notes: [...last.notes] } : { files: [], notes: [] },
     turns: turns.map((t) => ({
