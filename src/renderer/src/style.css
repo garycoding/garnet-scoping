@@ -514,6 +514,10 @@ input[type='search'] {
 }
 .board-status {
   color: var(--ok);
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .board-status.error {
   color: var(--error);
