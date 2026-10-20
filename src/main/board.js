@@ -53,7 +53,7 @@ export async function readImage(path) {
 // agent confirms it has stopped ("holding"), and the person releases it.
 export const NO_STATE = { editing: false, review: false, reviewAt: null, discuss: [], hold: 'off', holdAt: null }
 const HOLDS = new Set(['off', 'requested', 'holding'])
-const PANELS = new Set(['plan', 'now', 'trail', 'memory'])
+const PANELS = new Set(['plan', 'now', 'trail', 'memory', 'foryou'])
 const str = (v, max = 2000) => (typeof v === 'string' ? v.slice(0, max) : null)
 function cleanMark(m) {
   if (!m || typeof m.id !== 'string' || !PANELS.has(m.panel) || typeof m.key !== 'string') return null
