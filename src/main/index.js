@@ -16,12 +16,16 @@ import { listMemory } from './transcript/memory.js'
 import { follow } from './follower.js'
 import { openBoard } from './board.js'
 import { openAboutWindow, openLicensesWindow } from './about.js'
+import { loadSettings, saveSettings, clean } from './settings.js'
 
 const CLAUDE = join(homedir(), '.claude')
 const PROJECTS = join(CLAUDE, 'projects')
 const PUSH_MS = 400
 
 let listWindow = null
+let settingsWindow = null
+let settingsFile = null
+let settings = null
 const windows = new Map() // session id -> { win, follower, project }
 
 function pageUrl(page, query = {}) {
@@ -91,7 +95,22 @@ function inside(dir, p) {
   return full === dir || full.startsWith(dir + sep) ? full : null
 }
 
+// The Settings window (one at a time).
+function openSettings() {
+  if (settingsWindow && !settingsWindow.isDestroyed()) return settingsWindow.focus()
+  settingsWindow = new BrowserWindow({ width: 420, height: 230, resizable: false, minimizable: false, maximizable: false, fullscreenable: false, title: 'Settings', backgroundColor: '#17181a', webPreferences: webPreferences() })
+  load(settingsWindow, 'settings')
+  settingsWindow.on('closed', () => (settingsWindow = null))
+}
+
 function registerIpc() {
+  ipcMain.handle('settings:get', () => settings)
+  ipcMain.handle('settings:set', async (_e, next) => {
+    settings = clean(next)
+    await saveSettings(settingsFile, settings)
+    for (const w of windows.values()) if (!w.win.isDestroyed()) w.win.webContents.send('settings:changed', settings)
+    return settings
+  })
   ipcMain.handle('sessions:list', () => listSessions(PROJECTS))
   ipcMain.handle('sessions:open', (_e, info) => openSession(info))
   ipcMain.handle('session:view', async (e) => {
@@ -150,13 +169,14 @@ function buildMenu() {
   const isMac = process.platform === 'darwin'
   const about = { label: 'About garnet-scoping', click: () => openAboutWindow() }
   const licenses = { label: 'Open Source Licenses…', click: () => openLicensesWindow() }
+  const prefs = { label: 'Settings…', accelerator: 'CmdOrCtrl+,', click: () => openSettings() }
   Menu.setApplicationMenu(
     Menu.buildFromTemplate([
       ...(isMac
         ? [
             {
               role: 'appMenu',
-              submenu: [about, licenses, { type: 'separator' }, { role: 'services' }, { type: 'separator' }, { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' }, { type: 'separator' }, { role: 'quit' }],
+              submenu: [about, licenses, { type: 'separator' }, prefs, { type: 'separator' }, { role: 'services' }, { type: 'separator' }, { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' }, { type: 'separator' }, { role: 'quit' }],
             },
           ]
         : []),
@@ -170,6 +190,8 @@ function buildMenu() {
 }
 
 app.whenReady().then(() => {
+  settingsFile = join(app.getPath('userData'), 'settings.json')
+  settings = loadSettings(settingsFile)
   refuseNetwork()
   registerIpc()
   buildMenu()

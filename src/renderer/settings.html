@@ -1,0 +1,22 @@
+<!doctype html>
+<!-- SPDX-FileCopyrightText: 2026 Gary Frattarola <garyf@parkviewlab.ai> -->
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'" />
+    <title>Settings</title>
+    <link rel="stylesheet" href="./src/style.css" />
+  </head>
+  <body class="settings-page">
+    <h2>Board</h2>
+    <p class="muted">When the board is shown beside other panels, it takes this half of the session window.</p>
+    <div class="sides" role="radiogroup" aria-label="Board position">
+      <label><input type="radio" name="side" value="left" /> Left</label>
+      <label><input type="radio" name="side" value="right" /> Right</label>
+      <label><input type="radio" name="side" value="top" /> Top</label>
+      <label><input type="radio" name="side" value="bottom" /> Bottom</label>
+    </div>
+    <script type="module" src="./src/settings.js"></script>
+  </body>
+</html>

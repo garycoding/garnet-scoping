@@ -6,7 +6,7 @@ import { defineConfig } from 'electron-vite'
 
 // Every process is bundled with its dependencies (only Electron and Node's
 // built-ins stay external), so the package needs no node_modules at run time.
-// The renderer has two pages: the session list and the session window.
+// The renderer has three pages: the session list, the session window and Settings.
 // Excalidraw's fonts are copied beside them, so the board loads them from the
 // app and not from a network (R5.4).
 const excalidrawFonts = {
@@ -23,7 +23,7 @@ export default defineConfig({
     plugins: [excalidrawFonts],
     build: {
       rollupOptions: {
-        input: { index: resolve('src/renderer/index.html'), session: resolve('src/renderer/session.html') },
+        input: { index: resolve('src/renderer/index.html'), session: resolve('src/renderer/session.html'), settings: resolve('src/renderer/settings.html') },
       },
     },
   },
