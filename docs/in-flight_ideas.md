@@ -40,3 +40,13 @@ garnet-scoping reads files that Claude Code writes for itself, not a published i
 Open questions: whether the conformance check runs on demand, weekly by scheduled task, or inside the app at each new version; what thresholds mark a fall as a break rather than a quiet week; how the investigation's findings are kept (a dated note per survey, in this repository without private content, or in the person's notes); which of the four to build first.
 
 Raised 2026-10-20.
+
+## Quote: selecting text on the Desk to send it to the agent
+
+Messaging apps let one highlight part of an earlier message and quote it in a new one, so the reply refers to exactly those words. The Desk could do the same: the person selects any passage of text on the Desk (part of the agent's message in Last word or the Trail, a few words of a plan step, a line of a command's output in the details view, a sentence of a memory note) and a small "Quote" control appears beside the selection. It sends the agent the exact words selected, where they came from (which message, which action, which note), and an optional note from the person, by the same route as a Discuss flag: the state file, the watcher or the channel, and the agent's answer recorded with its request. A whole-row flag stays for when the whole item is the subject; Quote is for when only part of it is.
+
+It is a finer form of signalling intent at the point of reading (northstar draft, intent 2): the reference is made exact by the selection itself, with no description of what is meant.
+
+Open questions: how a quote is shown on the Desk once sent (a flag on its row with the quoted words, or a mark on the words themselves); whether a quote must carry a note, since quoted words without a question say less than a flag; how a quote of text that later changes (a Last word replaced by a newer message) keeps pointing at what was quoted; whether quotes from the board's text belong here too.
+
+Raised 2026-10-20.
