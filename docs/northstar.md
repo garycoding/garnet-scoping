@@ -34,6 +34,8 @@ The board is a whiteboard of shapes with text, lines and arrows, shared by the p
 
 Communication must also be easy, in both directions. For the person, a signal is one gesture: a press of Review, a double-click on a row, an optional note of a line, a shape dropped on the board. For the agent, it is a short text file to read and a short request to write, never the board's own format, and signals arrive without the agent having to look for them. Friction on either side means the communication does not happen, and a concept left uncommunicated costs more than one communicated roughly.
 
+The easiest signal is the one given where and when the information is being taken in: a question about an action, asked on that action while reading it, needs no switch of place or attention and no description of what it refers to. Discuss is a first instance of this, a mark on the row being read; better ways of signalling intent at the point of reading are worth looking for, and each new view the app adds should offer one.
+
 Communication is also precise about its subject. Discuss points at one row of the Desk, an action, a plan step, a turn, a message or a memory note, optionally with a note, so that a question about the agent's work names exactly the work it is about, and the agent's answer is shown on that row.
 
 ### 3. Steering without loss
@@ -73,6 +75,7 @@ When making a decision, these are the questions to keep answering:
 - Does it help the person see what the agent is actually doing, or the agent see what the person is doing and asking for?
 - Does it make a concept, a question or an answer more exact, and keep it beside what it is about?
 - Is it easy for both the person and the agent: one gesture for the person, a short read or write for the agent?
+- Can the person signal intent right where and when they are reading, without moving elsewhere to say what they mean?
 - Can the person use it at any moment, and does it leave all work in progress intact?
 - Is it derived from the record rather than from the agent's report?
 - Does it cost the agent's work anything, and is the help worth that cost?
