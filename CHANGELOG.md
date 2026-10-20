@@ -4,6 +4,22 @@ All notable changes to this project are recorded here.
 
 ## [Unreleased]
 
+## [v0.4.0] - 2026-10-19
+
+### Highlights
+
+_Highlights were not generated for this release._
+
+### Features
+
+- Fit, to zoom the board to its whole drawing (#28)
+- Images on the board (#30)
+- The microscope icon (#31)
+
+### Docs
+
+- In-flight idea on knowing when a Claude Code release breaks garnet-scoping (#29)
+
 ## [v0.3.0] - 2026-10-19
 
 ### Highlights
