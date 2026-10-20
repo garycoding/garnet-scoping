@@ -4,6 +4,18 @@ All notable changes to this project are recorded here.
 
 ## [Unreleased]
 
+## [v0.5.0] - 2026-10-19
+
+### Highlights
+
+_Highlights were not generated for this release._
+
+### Features
+
+- Preview delivered files in the app, and discuss them (#35)
+- Discuss as a flag on each row (#36)
+- The list of requests to discuss, and the jump to each (#37)
+
 ## [v0.4.1] - 2026-10-19
 
 ### Highlights
