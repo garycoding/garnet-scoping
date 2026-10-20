@@ -17,6 +17,7 @@ import { follow } from './follower.js'
 import { openBoard } from './board.js'
 import { openAboutWindow, openLicensesWindow } from './about.js'
 import { loadSettings, saveSettings, clean } from './settings.js'
+import { openSetupInfo } from './setupInfo.js'
 
 const CLAUDE = join(homedir(), '.claude')
 const PROJECTS = join(CLAUDE, 'projects')
@@ -134,7 +135,12 @@ function registerIpc() {
     const w = entryOf(e)
     return w ? { paths: w.board.paths, scene: await w.board.load(), state: await w.board.state() } : null
   })
-  ipcMain.handle('board:set-state', (e, next) => entryOf(e)?.board.setState(next))
+  // The window may ask for a hold or release one; only the agent confirms it.
+  ipcMain.handle('board:set-state', (e, next) => {
+    const { hold, ...rest } = next ?? {}
+    return entryOf(e)?.board.setState(hold === 'requested' || hold === 'off' ? { ...rest, hold } : rest)
+  })
+  ipcMain.handle('session:discuss', (e, op) => entryOf(e)?.board.discuss(op))
   ipcMain.handle('board:save', (e, scene) => entryOf(e)?.board.save(scene))
   ipcMain.handle('board:ready', (e) => entryOf(e)?.board.ready())
   // Shows a folder or file in the Finder (S7); only absolute paths.
@@ -172,13 +178,14 @@ function buildMenu() {
   const about = { label: 'About garnet-scoping', click: () => openAboutWindow() }
   const licenses = { label: 'Open Source Licenses…', click: () => openLicensesWindow() }
   const prefs = { label: 'Settings…', accelerator: 'CmdOrCtrl+,', click: () => openSettings() }
+  const setupInfo = { label: 'Set-up Info…', click: () => openSetupInfo() }
   Menu.setApplicationMenu(
     Menu.buildFromTemplate([
       ...(isMac
         ? [
             {
               role: 'appMenu',
-              submenu: [about, licenses, { type: 'separator' }, prefs, { type: 'separator' }, { role: 'services' }, { type: 'separator' }, { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' }, { type: 'separator' }, { role: 'quit' }],
+              submenu: [about, setupInfo, licenses, { type: 'separator' }, prefs, { type: 'separator' }, { role: 'services' }, { type: 'separator' }, { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' }, { type: 'separator' }, { role: 'quit' }],
             },
           ]
         : []),
@@ -186,7 +193,7 @@ function buildMenu() {
       { role: 'editMenu' },
       { label: 'View', submenu: [{ role: 'reload' }, { role: 'toggleDevTools' }, { type: 'separator' }, { role: 'resetZoom' }, { role: 'zoomIn' }, { role: 'zoomOut' }] },
       { role: 'windowMenu' },
-      { role: 'help', submenu: [about, licenses] },
+      { role: 'help', submenu: [setupInfo, about, licenses] },
     ]),
   )
 }

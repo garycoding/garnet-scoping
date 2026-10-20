@@ -66,6 +66,10 @@ R2.5. **Touched this turn:** the files read and written, and the memory notes re
 
 R2.6. **Session facts:** the model and effort, the working folder and branch, linked pull requests, and how much of the context budget is left, where the transcript records them.
 
+R2.7. **Discuss:** the person can mark any row of Plan, Now, Trail or Memory to discuss with the agent: a double-click marks the row (or withdraws an open mark); the right-click menu marks it without a note or with one, or withdraws it. Marks are kept in the session's state file beside its board, shown on their rows and in a "To discuss" strip until withdrawn or dismissed, and stated at the head of the board's rendition. The agent answers in the conversation and records a one-line answer with its request (`"discussed"`), which the Desk shows on the row and in the strip.
+
+R2.8. **Hold:** a button on the window's header lets the person ask the agent to stop after its current step. The request shows as "Hold requested"; the agent finishes the step it is in, starts no other, and confirms with `"holding": true` in a request, after which the button shows "Holding"; the person releases the hold with the same button. Nothing the agent is running is cancelled. The hold is kept in the session's state file and stated at the head of the board's rendition; only the agent can confirm a hold, and only the person can request or release one.
+
 ### R3. The trail
 
 R3.1. Beneath the present state, the session turn by turn, newest at the bottom: each turn shows the person's message (with its images), the agent's actions in order with their descriptions, the files and notes touched, and the agent's closing message or recap.
@@ -115,6 +119,8 @@ R7.4. The agent changes the board by writing a short request file beside it, lis
 R7.5. The person's edits and the agent's requests merge by element, so that neither overwrites the other: a change to the board file from outside the window is merged element by element, the newer version of each element winning, and the board file is always written whole and atomically.
 
 R7.6. The board carries two signals from the person to the agent. **Editing** is a checkbox that any change the person makes to the board checks, and that the person unchecks when done, so the agent knows whether the board is still being changed. **Review** is a toggle the person turns on to ask the agent to read the board now, which also unchecks Editing; the agent turns it off, with its request, once it has read the board. Both are off by default, kept on disk beside the board, and stated at the head of the rendition.
+
+R7.7. The person's signals (Review, Discuss, Hold) reach the agent without a message from the person. Two routes are provided. A **watcher**, a shell script the agent runs in the background in every session, started by a SessionStart hook and governed by a rule in the person's `~/.claude/CLAUDE.md`, exits when a signal appears. A **channel**, an MCP server shipped in the app and run by Claude Code over stdio with the app's own binary, pushes each signal into the session the moment it appears; Claude Code loads channels only in terminal sessions started with it, as a research preview, so the watcher remains for the desktop app until that changes. The app's **Set-up Info** window gives the person copyable text that has Claude install the watcher, the hook and the rule, and the command that starts a terminal session with the channel. The channel uses Node's standard library only and opens no network connection.
 
 ## Proposed and settled
 

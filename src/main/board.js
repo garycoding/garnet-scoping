@@ -27,12 +27,41 @@ export const boardPaths = (id, dir = BOARDS) => ({
   state: join(dir, `${id}.state.json`),
 })
 
-// The person's signals to the agent (R7.6): editing, and a review asked for.
-export const NO_STATE = { editing: false, review: false, reviewAt: null }
+// The person's signals to the agent: editing and a review asked for (R7.6),
+// the rows of the Desk they want to discuss (R2.7), and a hold (R2.8): the
+// person asks the agent to stop after its current step ("requested"), the
+// agent confirms it has stopped ("holding"), and the person releases it.
+export const NO_STATE = { editing: false, review: false, reviewAt: null, discuss: [], hold: 'off', holdAt: null }
+const HOLDS = new Set(['off', 'requested', 'holding'])
+const PANELS = new Set(['plan', 'now', 'trail', 'memory'])
+const str = (v, max = 2000) => (typeof v === 'string' ? v.slice(0, max) : null)
+function cleanMark(m) {
+  if (!m || typeof m.id !== 'string' || !PANELS.has(m.panel) || typeof m.key !== 'string') return null
+  const answered = m.status === 'answered'
+  return {
+    id: m.id.slice(0, 40),
+    panel: m.panel,
+    key: m.key.slice(0, 400),
+    text: str(m.text) ?? '',
+    note: str(m.note),
+    at: str(m.at, 40),
+    status: answered ? 'answered' : 'open',
+    answer: answered ? str(m.answer) : null,
+    answeredAt: answered ? str(m.answeredAt, 40) : null,
+  }
+}
 export function cleanState(raw) {
   const review = raw?.review === true
-  return { editing: raw?.editing === true, review, reviewAt: review && typeof raw.reviewAt === 'string' ? raw.reviewAt : null }
+  return {
+    editing: raw?.editing === true,
+    review,
+    reviewAt: review && typeof raw.reviewAt === 'string' ? raw.reviewAt : null,
+    discuss: (Array.isArray(raw?.discuss) ? raw.discuss : []).map(cleanMark).filter(Boolean).slice(-100),
+    hold: HOLDS.has(raw?.hold) ? raw.hold : 'off',
+    holdAt: HOLDS.has(raw?.hold) && raw.hold !== 'off' ? str(raw.holdAt, 40) : null,
+  }
 }
+const now = () => new Date().toISOString().replace(/\.\d+Z$/, 'Z')
 
 const SHAPES = new Set(['rectangle', 'ellipse', 'diamond'])
 const hash = (s) => createHash('sha1').update(s).digest('hex')
@@ -45,7 +74,7 @@ async function writeAtomic(path, text) {
 
 // The board as text (R7.3): each shape with its id, kind, text and position,
 // each connection as "A → B", and free text, preceded by how to change it.
-export function rendition(elements, { title = null, requestPath = '', state = NO_STATE } = {}) {
+export function rendition(elements, { title = null, requestPath = '', statePath = '', state = NO_STATE } = {}) {
   const live = elements.filter((e) => !e.isDeleted)
   const byId = new Map(live.map((e) => [e.id, e]))
   const textOf = (e) => {
@@ -64,6 +93,17 @@ export function rendition(elements, { title = null, requestPath = '', state = NO
   lines.push(
     `Editing: ${state.editing ? 'yes (the person is still changing the board)' : 'no'}`,
     `Review: ${state.review ? `requested${state.reviewAt ? ` at ${state.reviewAt}` : ''} (the person asks you to read the board now)` : 'not requested'}`,
+    `Hold: ${
+      state.hold === 'requested'
+        ? `requested${state.holdAt ? ` at ${state.holdAt}` : ''} (finish the step you are in, start no other, send "holding": true, and wait until the person releases it)`
+        : state.hold === 'holding'
+          ? 'holding (you have stopped; wait until the person releases the hold)'
+          : 'no'
+    }`,
+    `Discuss: ${(() => {
+      const open = (state.discuss ?? []).filter((m) => m.status === 'open')
+      return open.length ? `${open.length} open (rows of the Desk the person wants to talk about; listed under "discuss" in ${statePath || '<id>.state.json'})` : 'nothing open'
+    })()}`,
     '',
     'This file is written by garnet-scoping whenever the board changes; do not edit it.',
     `To change the board, write a request to ${requestPath || '<id>.request.json'} as JSON:`,
@@ -72,6 +112,8 @@ export function rendition(elements, { title = null, requestPath = '', state = NO
     '  "relabel": [ { "id": "a", "text": "…" } ], "remove": [ "id" ], "reviewed": true }',
     'Positions are optional; shapes without one are placed to the right of the board. The app applies the request and deletes the file.',
     'When a review is requested and you have read the board, include "reviewed": true (alone, or with changes): it turns the Review button off.',
+    'For each open "discuss" item, answer the person in the conversation, then include "discussed": [ { "id": "…", "answer": "a line shown on the Desk" } ].',
+    'When a hold is requested, finish the step you are in, start no other, include "holding": true, and wait until the Hold line reads "no".',
     '',
     '## Shapes',
   )
@@ -143,7 +185,7 @@ export function openBoard(id, { title = null, dir = BOARDS, onRequest, onExterna
 
   async function writeRendition() {
     if (!lastElements) await load()
-    await writeAtomic(p.rendition, rendition(lastElements ?? [], { title, requestPath: p.request, state }))
+    await writeAtomic(p.rendition, rendition(lastElements ?? [], { title, requestPath: p.request, statePath: p.state, state }))
   }
 
   // The window reports the person's signals; the agent's "reviewed" clears
@@ -151,12 +193,13 @@ export function openBoard(id, { title = null, dir = BOARDS, onRequest, onExterna
   async function setState(next) {
     await stateLoaded
     const before = state
-    state = cleanState({ ...state, ...next })
+    state = cleanState({ ...state, ...next, discuss: next.discuss ?? state.discuss })
     // Asking for a review means the person has finished editing.
     if (state.review && !before.review) {
-      state.reviewAt = new Date().toISOString().replace(/\.\d+Z$/, 'Z')
+      state.reviewAt = now()
       state.editing = false
     }
+    if (state.hold !== before.hold) state.holdAt = state.hold === 'off' ? null : now()
     await mkdir(dir, { recursive: true })
     await writeAtomic(p.state, JSON.stringify(state, null, 2))
     await writeRendition()
@@ -171,7 +214,31 @@ export function openBoard(id, { title = null, dir = BOARDS, onRequest, onExterna
     lastElements = scene.elements
     await writeAtomic(p.board, text)
     await stateLoaded
-    await writeAtomic(p.rendition, rendition(scene.elements, { title, requestPath: p.request, state }))
+    await writeAtomic(p.rendition, rendition(scene.elements, { title, requestPath: p.request, statePath: p.state, state }))
+  }
+
+  // The person marks a row to discuss, withdraws a mark, or dismisses an
+  // answered one; the agent answers marks through its request.
+  async function discuss(op) {
+    await stateLoaded
+    if (op?.op === 'get') return state
+    let list = [...state.discuss]
+    if (op?.op === 'mark' && op.mark) {
+      list = list.filter((m) => !(m.key === op.mark.key && m.status === 'open'))
+      list.push({ ...op.mark, id: `d${Date.now().toString(36)}${Math.floor(Math.random() * 1296).toString(36)}`, at: now(), status: 'open' })
+    } else if (op?.op === 'remove') {
+      list = list.filter((m) => m.id !== op.id)
+    }
+    return setState({ discuss: list })
+  }
+
+  function answered(items) {
+    const byId = new Map()
+    for (const it of items) {
+      if (typeof it === 'string') byId.set(it, null)
+      else if (it && typeof it.id === 'string') byId.set(it.id, typeof it.answer === 'string' ? it.answer : null)
+    }
+    return state.discuss.map((m) => (byId.has(m.id) && m.status === 'open' ? { ...m, status: 'answered', answer: byId.get(m.id), answeredAt: now() } : m))
   }
 
   async function checkRequest() {
@@ -189,11 +256,20 @@ export function openBoard(id, { title = null, dir = BOARDS, onRequest, onExterna
       return
     }
     const changes = ['add', 'relabel', 'remove'].some((k) => Array.isArray(req?.[k]) && req[k].length)
-    // A request with changes waits until the board is ready to apply them; a
-    // bare "reviewed" needs no board and is applied at once.
+    // A request with changes waits until the board is ready to apply them;
+    // "reviewed" and "discussed" need no board and are applied at once.
     if (changes && !ready) return onPending?.()
     await unlink(p.request).catch(() => {})
-    if (req?.reviewed === true) await setState({ review: false })
+    // "holding" confirms a requested hold; it cannot start one.
+    const holding = req?.holding === true && state.hold === 'requested'
+    if (req?.reviewed === true || Array.isArray(req?.discussed) || holding) {
+      await stateLoaded
+      await setState({
+        ...(req.reviewed === true ? { review: false } : {}),
+        ...(Array.isArray(req.discussed) ? { discuss: answered(req.discussed) } : {}),
+        ...(holding ? { hold: 'holding' } : {}),
+      })
+    }
     if (changes) onRequest({ request: req })
   }
 
@@ -236,6 +312,7 @@ export function openBoard(id, { title = null, dir = BOARDS, onRequest, onExterna
     load,
     save,
     setState,
+    discuss,
     state: async () => (await stateLoaded, state),
     // The window's board is mounted: apply any waiting request.
     ready() {

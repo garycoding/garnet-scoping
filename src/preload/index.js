@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld('garnet', {
   listMemory: () => ipcRenderer.invoke('memory:list'),
   readMemory: (path) => ipcRenderer.invoke('memory:read', path),
   showInFinder: (path) => ipcRenderer.invoke('finder:show', path),
+  discuss: (op) => ipcRenderer.invoke('session:discuss', op),
   settings: {
     get: () => ipcRenderer.invoke('settings:get'),
     set: (s) => ipcRenderer.invoke('settings:set', s),

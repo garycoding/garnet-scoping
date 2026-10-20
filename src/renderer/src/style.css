@@ -554,3 +554,132 @@ input[type='search'] {
 .sides label {
   cursor: pointer;
 }
+
+/* ---- discussing a row (R2.7) ---- */
+.discuss-open {
+  box-shadow: inset 3px 0 0 var(--accent);
+  background: rgba(192, 72, 94, 0.12);
+}
+.discuss-answer {
+  /* inline-block, so that a completed step's strike-through does not reach it */
+  display: inline-block;
+  width: 100%;
+  text-decoration: none;
+  grid-column: 1 / -1;
+  margin: 2px 0 2px 6px;
+  font-size: 12px;
+  color: var(--ok);
+}
+.discuss-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  padding: 6px 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+  font-size: 12px;
+}
+.discuss-strip[hidden] {
+  display: none;
+}
+.strip-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent-soft);
+}
+.strip-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 520px;
+  padding: 2px 4px 2px 8px;
+  border: 1px solid var(--accent);
+  border-radius: 5px;
+}
+.strip-item.answered {
+  border-color: var(--line);
+}
+.strip-item .where {
+  color: var(--muted);
+}
+.strip-item .what,
+.strip-item .note,
+.strip-item .answer {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.strip-item .note {
+  color: var(--accent-soft);
+}
+.strip-item .answer {
+  color: var(--ok);
+}
+.strip-item .x {
+  flex: none;
+  padding: 0 6px;
+  font-size: 11px;
+}
+.ctx-menu {
+  position: fixed;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  min-width: 200px;
+  padding: 4px;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+}
+.ctx-menu[hidden] {
+  display: none;
+}
+.ctx-menu button {
+  text-align: left;
+  border: 0;
+  background: none;
+  padding: 5px 10px;
+}
+.ctx-menu button:hover {
+  background: var(--accent);
+  color: #fff;
+}
+.note-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.note-form textarea {
+  font: inherit;
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 6px 8px;
+  resize: vertical;
+}
+.note-form .primary {
+  align-self: flex-end;
+  border-color: var(--accent);
+}
+
+/* ---- Hold (R2.8) ---- */
+.bar .hold {
+  margin-left: auto;
+  flex: none;
+}
+.hold.requested {
+  border-color: var(--warn);
+  color: var(--warn);
+  box-shadow: 0 0 8px rgba(224, 178, 58, 0.5);
+}
+.hold.holding {
+  background: var(--warn);
+  border-color: var(--warn);
+  color: #1b1405;
+}

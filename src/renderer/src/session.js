@@ -48,6 +48,157 @@ $('viewer-close').addEventListener('click', () => ($('viewer').hidden = true))
 $('viewer').addEventListener('mousedown', (e) => e.target === $('viewer') && ($('viewer').hidden = true))
 window.addEventListener('keydown', (e) => e.key === 'Escape' && ($('viewer').hidden = true))
 
+// ---- discussing a row (R2.7) ----
+// Any row of Plan, Now, Trail or Memory can be marked for discussion: a
+// double-click marks it (or withdraws an open mark), and the right-click
+// menu marks it with or without a note. Marks live in the session's state
+// file, where the agent's watcher sees them; the agent answers them there.
+let marks = []
+const PANEL_NAMES = { plan: 'Plan', now: 'Now', trail: 'Trail', memory: 'Memory' }
+const openMark = (key) => marks.find((m) => m.key === key && m.status === 'open')
+const answeredMark = (key) => marks.findLast((m) => m.key === key && m.status === 'answered')
+
+// ---- Hold (R2.8) ----
+// The person asks the agent to stop after its current step; the agent
+// confirms it has stopped; the person releases it with the same button.
+let hold = 'off'
+function showHold(state) {
+  hold = state?.hold ?? 'off'
+  const b = $('hold')
+  b.className = `hold ${hold}`
+  b.setAttribute('aria-pressed', String(hold !== 'off'))
+  b.textContent = hold === 'requested' ? 'Hold requested' : hold === 'holding' ? 'Holding · Release' : 'Hold'
+  b.title =
+    hold === 'requested'
+      ? 'Waiting for the agent to finish its current step; click to withdraw'
+      : hold === 'holding'
+        ? 'The agent has stopped and is waiting; click to release it'
+        : 'Ask the agent to stop after its current step'
+}
+$('hold').addEventListener('click', () => {
+  window.garnet.board.setState({ hold: hold === 'off' ? 'requested' : 'off' }).then(setMarks)
+})
+
+function setMarks(state) {
+  showHold(state)
+  marks = state?.discuss ?? []
+  if (view) {
+    renderPresent()
+    renderTrail()
+    renderMemory()
+  }
+  renderStrip()
+}
+
+function mark(row, note = null) {
+  return window.garnet.discuss({ op: 'mark', mark: { panel: row.panel, key: row.key, text: row.text, note } }).then(setMarks)
+}
+function withdraw(id) {
+  return window.garnet.discuss({ op: 'remove', id }).then(setMarks)
+}
+function toggleMark(row) {
+  const m = openMark(row.key)
+  return m ? withdraw(m.id) : mark(row)
+}
+
+function askNote(row) {
+  const body = el('div', 'note-form')
+  const area = el('textarea')
+  area.rows = 3
+  area.placeholder = 'What would you like to ask about it?'
+  const go = el('button', 'primary', 'Discuss')
+  go.type = 'button'
+  const send = () => {
+    $('viewer').hidden = true
+    mark(row, area.value.trim() || null)
+  }
+  go.addEventListener('click', send)
+  area.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) send()
+  })
+  body.append(el('div', 'muted', row.text), area, go)
+  showViewer('Discuss, with a note', body)
+  area.focus()
+}
+
+const menu = $('ctx-menu')
+function closeMenu() {
+  menu.hidden = true
+}
+function showMenu(e, row) {
+  e.preventDefault()
+  const items = [
+    ['Discuss', () => mark(row)],
+    ['Discuss, with a note…', () => askNote(row)],
+  ]
+  const m = openMark(row.key)
+  if (m) items.push(['Withdraw the discussion', () => withdraw(m.id)])
+  menu.replaceChildren(
+    ...items.map(([label, act]) => {
+      const b = el('button', null, label)
+      b.type = 'button'
+      b.addEventListener('click', () => {
+        closeMenu()
+        act()
+      })
+      return b
+    }),
+  )
+  menu.hidden = false
+  const { innerWidth: w, innerHeight: h } = window
+  const r = menu.getBoundingClientRect()
+  menu.style.left = `${Math.min(e.clientX, w - r.width - 4)}px`
+  menu.style.top = `${Math.min(e.clientY, h - r.height - 4)}px`
+}
+window.addEventListener('mousedown', (e) => !menu.contains(e.target) && closeMenu())
+window.addEventListener('keydown', (e) => e.key === 'Escape' && closeMenu())
+window.addEventListener('blur', closeMenu)
+
+// Makes a row markable. Its own click, if any, waits a moment so that a
+// double-click does not also open it.
+function markable(node, row, onClick = null) {
+  let timer = null
+  if (onClick) {
+    node.addEventListener('click', (e) => {
+      if (e.detail > 1) return
+      clearTimeout(timer)
+      timer = setTimeout(onClick, 260)
+    })
+  }
+  node.addEventListener('dblclick', (e) => {
+    e.preventDefault()
+    clearTimeout(timer)
+    window.getSelection()?.removeAllRanges()
+    toggleMark(row)
+  })
+  node.addEventListener('contextmenu', (e) => showMenu(e, row))
+  if (openMark(row.key)) node.classList.add('discuss-open')
+  const done = answeredMark(row.key)
+  if (done?.answer) node.append(el('div', 'discuss-answer', `Answered: ${done.answer}`))
+  return node
+}
+
+function renderStrip() {
+  const strip = $('discuss-strip')
+  const shown = marks.filter((m) => m.status === 'open' || m.answer)
+  strip.hidden = !shown.length
+  strip.replaceChildren(
+    el('span', 'strip-title', 'To discuss'),
+    ...shown.map((m) => {
+      const item = el('span', `strip-item ${m.status}`)
+      item.append(el('span', 'where', PANEL_NAMES[m.panel] ?? m.panel), el('span', 'what', m.text))
+      if (m.note) item.append(el('span', 'note', `“${m.note}”`))
+      if (m.status === 'answered') item.append(el('span', 'answer', m.answer))
+      item.title = [m.text, m.note && `Note: ${m.note}`, m.answer && `Answer: ${m.answer}`].filter(Boolean).join('\n')
+      const x = el('button', 'x', m.status === 'open' ? 'Withdraw' : 'Dismiss')
+      x.type = 'button'
+      x.addEventListener('click', () => withdraw(m.id))
+      item.append(x)
+      return item
+    }),
+  )
+}
+
 async function showDetail(action) {
   const d = await window.garnet.detail(action.id)
   const body = el('div')
@@ -59,12 +210,11 @@ async function showDetail(action) {
 }
 
 // ---- pieces ----
-function actionRow(a, { showAgo = false } = {}) {
+function actionRow(a, { showAgo = false, panel = 'now' } = {}) {
   const li = el('li', `action${a.hasDetail ? ' detail' : ''}${a.isError ? ' error' : ''}${a.done ? '' : ' running'}`)
   li.append(el('span', 'text', a.text), el('span', 'when', showAgo ? ago(a.at) : clock(a.at)))
   if (a.target) li.title = a.target
-  if (a.hasDetail) li.addEventListener('click', () => showDetail(a))
-  return li
+  return markable(li, { panel, key: `action:${a.id}`, text: a.text }, a.hasDetail ? () => showDetail(a) : null)
 }
 
 function pathList(entries, kind) {
@@ -82,7 +232,7 @@ function pathList(entries, kind) {
 // ---- the present state (R2) ----
 function renderPresent() {
   const plan = $('plan')
-  plan.replaceChildren(...view.plan.items.map((it) => el('li', it.status, it.content)))
+  plan.replaceChildren(...view.plan.items.map((it) => markable(el('li', it.status, it.content), { panel: 'plan', key: `plan:${it.content}`, text: it.content })))
   if (!view.plan.items.length) plan.replaceChildren(el('li', 'muted', 'No plan in this session.'))
 
   $('now').replaceChildren(...(view.now.length ? view.now.map((a) => actionRow(a, { showAgo: true })) : [el('li', 'muted', 'No actions yet.')]))
@@ -125,7 +275,7 @@ function turnEl(t, i, isLast) {
   head.append(el('span', 'when', clock(t.at ?? t.items[0]?.at)), el('span', 'who', who), el('span', 'count', `${actions} action${actions === 1 ? '' : 's'}`))
   sec.append(head)
   const isOpen = open.has(i) || (isLast && !closed.has(i))
-  head.addEventListener('click', () => {
+  markable(head, { panel: 'trail', key: `turn:${i}`, text: `Turn at ${clock(t.at ?? t.items[0]?.at)}: ${who}` }, () => {
     if (isOpen) {
       open.delete(i)
       closed.add(i)
@@ -146,13 +296,13 @@ function turnEl(t, i, isLast) {
   const flush = () => {
     if (ul.childNodes.length) body.append(ul.cloneNode(false)), body.lastChild.replaceChildren(...ul.childNodes)
   }
-  for (const it of t.items) {
+  for (const [j, it] of t.items.entries()) {
     if (it.type === 'action') {
-      ul.append(actionRow(it))
+      ul.append(actionRow(it, { panel: 'trail' }))
       continue
     }
     flush()
-    if (it.type === 'text') body.append(Object.assign(markdown(it.text), { className: 'item text markdown' }))
+    if (it.type === 'text') body.append(markable(Object.assign(markdown(it.text), { className: 'item text markdown' }), { panel: 'trail', key: `text:${i}:${j}`, text: it.text.replace(/\s+/g, ' ').slice(0, 300) }))
     else if (it.type === 'thinking') body.append(el('div', 'item thinking', it.text ? it.text : 'Reasoning: not kept in the transcript.'))
     else if (it.type === 'mid-turn') body.append(el('div', 'item mid-turn', `Sent mid-turn: ${it.text}`))
     else if (it.type === 'notification') body.append(el('div', 'item notification', `Finished in the background: ${it.text}`))
@@ -236,8 +386,7 @@ function renderMemory() {
   if (memory.index) {
     const n = el('div', 'note')
     n.append(el('div', 'name', 'MEMORY (the index)'))
-    n.addEventListener('click', () => openNote(memory.index.path, 'MEMORY'))
-    box.append(n)
+    box.append(markable(n, { panel: 'memory', key: `note:${memory.index.path}`, text: 'MEMORY (the index)' }, () => openNote(memory.index.path, 'MEMORY')))
   }
   let type = null
   for (const note of memory.notes) {
@@ -248,8 +397,7 @@ function renderMemory() {
     const n = el('div', `note${used.has(note.path) ? ' used' : ''}`)
     n.title = used.has(note.path) ? 'Read or written in this session' : note.path
     n.append(el('div', 'name', note.name), el('div', 'desc', note.description))
-    n.addEventListener('click', () => openNote(note.path, note.name))
-    box.append(n)
+    box.append(markable(n, { panel: 'memory', key: `note:${note.path}`, text: `Memory note ${note.name}` }, () => openNote(note.path, note.name)))
   }
 }
 
@@ -341,5 +489,8 @@ async function refresh() {
 }
 
 window.garnet.onChanged(refresh)
+// The marks to discuss: read once, then kept current by the main process.
+window.garnet.discuss({ op: 'get' }).then(setMarks)
+window.garnet.board.onState(setMarks)
 setInterval(() => view && renderPresent(), 15_000) // keep the waiting times current
 refresh()
