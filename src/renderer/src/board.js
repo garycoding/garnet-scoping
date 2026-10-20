@@ -255,9 +255,16 @@ export async function mountBoard(container) {
   reviewButton.textContent = 'Review'
   // Asking for a review ends editing.
   reviewButton.addEventListener('click', () => setState(boardState.review ? { review: false } : { review: true, editing: false }))
+  // Fit: zooms and scrolls so that the whole drawing is in view.
+  const fit = document.createElement('button')
+  fit.type = 'button'
+  fit.className = 'board-fit'
+  fit.textContent = 'Fit'
+  fit.title = 'Zoom to fit the whole board (Shift+1)'
+  fit.addEventListener('click', () => api?.scrollToContent(undefined, { fitToContent: true, animate: true }))
   const signals = document.createElement('span')
   signals.className = 'board-signals'
-  signals.append(editing, reviewButton)
+  signals.append(editing, reviewButton, fit)
   head.append(signals, paths, copy, statusEl)
   showState(info.state ?? boardState)
   window.garnet.board.onState(showState)
