@@ -55,7 +55,19 @@ window.addEventListener('keydown', (e) => e.key === 'Escape' && ($('viewer').hid
 // menu marks it with or without a note. Marks live in the session's state
 // file, where the agent's watcher sees them; the agent answers them there.
 let marks = []
-const FLAG_SVG = '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3.5 1.5v13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M4.2 2.2h8.3l-2 3.1 2 3.1H4.2z" fill="currentColor"/></svg>'
+// The Discuss badge: lit while a request to discuss, outlined when turned
+// off or answered; a click toggles it.
+function badge(m, title) {
+  const b = el('button', `discuss-badge ${m.status === 'open' ? 'on' : 'off'}`, 'Discuss')
+  b.type = 'button'
+  b.title = title
+  b.addEventListener('click', (e) => {
+    e.stopPropagation()
+    toggleFlag(m.id)
+  })
+  b.addEventListener('dblclick', (e) => e.stopPropagation())
+  return b
+}
 const openMark = (key) => marks.find((m) => m.key === key && m.status === 'open')
 // A row's mark: its open one if any, else its latest (turned off or answered).
 const markOf = (key) => openMark(key) ?? marks.findLast((m) => m.key === key)
@@ -179,29 +191,32 @@ function markable(node, row, onClick = null, extra = []) {
     toggleMark(row)
   })
   node.addEventListener('contextmenu', (e) => showMenu(e, row, extra))
-  // The flag column: empty until the row is marked; then a flag, lit while
-  // it is a request to discuss, dim when turned off or answered. A click on
-  // the flag turns it off or on again.
-  node.classList.add('flaggable')
+  // A marked row carries the Discuss badge at its start; an unmarked row
+  // keeps its full width.
   node.dataset.key = row.key
   const m = markOf(row.key)
-  const cell = el('span', 'flag-cell')
   if (m) {
-    const flag = el('button', `flag ${m.status === 'open' ? 'on' : 'off'}`)
-    flag.type = 'button'
-    flag.innerHTML = FLAG_SVG
-    flag.title =
+    const title =
       m.status === 'open'
         ? `A request to discuss${m.note ? `: ${m.note}` : ''}. Click to turn it off.`
         : `${m.status === 'answered' ? 'Answered' : 'Turned off'}${m.note ? ` (${m.note})` : ''}. Click to ask again.`
-    flag.addEventListener('click', (e) => {
-      e.stopPropagation()
-      toggleFlag(m.id)
-    })
-    flag.addEventListener('dblclick', (e) => e.stopPropagation())
-    cell.append(flag)
+    // On a file, the badge sits on the tile's top-left corner; on a row, at
+    // its right-hand end (before its time, where it has one), so that every
+    // row still starts at the same place.
+    const b = badge(m, title)
+    if (node.classList.contains('delivery-file')) {
+      node.classList.add('badged-file')
+      node.prepend(b)
+    } else {
+      node.classList.add('badged')
+      const end = node.querySelector(':scope > .when, :scope > .count')
+      if (end) node.insertBefore(b, end)
+      else {
+        b.classList.add('end')
+        ;(node.querySelector(':scope > .name') ?? node).prepend(b)
+      }
+    }
   }
-  node.prepend(cell)
   const done = answeredMark(row.key)
   if (done?.answer) node.append(el('div', 'discuss-answer', `Answered: ${done.answer}`))
   return node
@@ -562,14 +577,7 @@ function discussEntries() {
 
 function discussItem(m, after) {
   const item = el('div', `discuss-item ${m.status}`)
-  const flag = el('button', `flag ${m.status === 'open' ? 'on' : 'off'}`)
-  flag.type = 'button'
-  flag.innerHTML = FLAG_SVG
-  flag.title = m.status === 'open' ? 'Click to turn this request off' : 'Click to ask again'
-  flag.addEventListener('click', (e) => {
-    e.stopPropagation()
-    toggleFlag(m.id)
-  })
+  const flag = badge(m, m.status === 'open' ? 'Click to turn this request off' : 'Click to ask again')
   const body = el('div', 'discuss-body')
   body.append(el('div', 'discuss-what', m.text))
   const meta = [WHERE[m.panel] ?? m.panel, m.at ? ago(m.at) : null].filter(Boolean).join(' · ')
@@ -590,7 +598,7 @@ function renderDiscuss() {
   const openCount = marks.filter((m) => m.status === 'open').length
   const btn = $('discuss-btn')
   btn.hidden = !marks.length
-  btn.innerHTML = `${FLAG_SVG}<span>${openCount}</span>`
+  btn.replaceChildren(el('span', 'discuss-badge on', 'Discuss'), el('span', 'count', String(openCount)))
   btn.classList.toggle('lit', openCount > 0)
   btn.title = openCount ? `${openCount} request${openCount === 1 ? '' : 's'} to discuss` : 'No open requests to discuss'
   const list = $('discuss-list')
