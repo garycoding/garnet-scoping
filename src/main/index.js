@@ -135,6 +135,7 @@ function registerIpc() {
     return w ? { paths: w.board.paths, scene: await w.board.load(), state: await w.board.state() } : null
   })
   ipcMain.handle('board:set-state', (e, next) => entryOf(e)?.board.setState(next))
+  ipcMain.handle('session:discuss', (e, op) => entryOf(e)?.board.discuss(op))
   ipcMain.handle('board:save', (e, scene) => entryOf(e)?.board.save(scene))
   ipcMain.handle('board:ready', (e) => entryOf(e)?.board.ready())
   // Shows a folder or file in the Finder (S7); only absolute paths.
