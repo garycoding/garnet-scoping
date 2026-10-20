@@ -143,7 +143,30 @@ describe('the board on disk', () => {
   })
 
   it('cleans a state read from disk', () => {
-    expect(cleanState({ editing: 'yes', review: true, reviewAt: 5, x: 1 })).toEqual({ editing: false, review: true, reviewAt: null })
-    expect(cleanState(null)).toEqual({ editing: false, review: false, reviewAt: null })
+    expect(cleanState({ editing: 'yes', review: true, reviewAt: 5, x: 1 })).toEqual({ editing: false, review: true, reviewAt: null, discuss: [] })
+    expect(cleanState(null)).toEqual({ editing: false, review: false, reviewAt: null, discuss: [] })
+    const marks = cleanState({ discuss: [{ id: 'd1', panel: 'plan', key: 'plan:0', text: 'One', status: 'open', answer: 'x' }, { id: 'd2', panel: 'elsewhere', key: 'k' }, null] }).discuss
+    expect(marks).toEqual([{ id: 'd1', panel: 'plan', key: 'plan:0', text: 'One', note: null, at: null, status: 'open', answer: null, answeredAt: null }])
+  })
+
+  it('keeps marks to discuss, and the agent answers them by request', async () => {
+    const states = []
+    const b = openBoard('s7', { dir, onRequest() {}, onExternal() {}, onState: (st) => states.push(st) })
+    await b.discuss({ op: 'mark', mark: { panel: 'now', key: 'action:t1', text: 'Run the tests', note: 'why did this fail?' } })
+    await b.discuss({ op: 'mark', mark: { panel: 'plan', key: 'plan:1', text: 'Two', note: null } })
+    // Marking the same row again replaces its open mark.
+    await b.discuss({ op: 'mark', mark: { panel: 'plan', key: 'plan:1', text: 'Two', note: 'skip it?' } })
+    let st = await b.state()
+    expect(st.discuss.map((m) => [m.key, m.note, m.status])).toEqual([['action:t1', 'why did this fail?', 'open'], ['plan:1', 'skip it?', 'open']])
+    expect(await readFile(b.paths.rendition, 'utf8')).toMatch(/^Discuss: 2 open/m)
+    const [first, second] = st.discuss
+    await writeFile(b.paths.request, JSON.stringify({ discussed: [{ id: first.id, answer: 'A flaky watcher; fixed.' }] }))
+    await until(() => states.at(-1)?.discuss.some((m) => m.status === 'answered'))
+    st = await b.state()
+    expect(st.discuss.find((m) => m.id === first.id)).toMatchObject({ status: 'answered', answer: 'A flaky watcher; fixed.' })
+    expect(await readFile(b.paths.rendition, 'utf8')).toMatch(/^Discuss: 1 open/m)
+    await b.discuss({ op: 'remove', id: second.id })
+    expect((await b.state()).discuss.map((m) => m.id)).toEqual([first.id])
+    b.close()
   })
 })

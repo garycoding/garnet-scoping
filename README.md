@@ -50,6 +50,14 @@ Two controls in the header carry the person's signals, and the rendition states 
 - **Editing** is checked by any change the person makes, and unchecked by the person when done (`Editing: yes` or `no`).
 - **Review** is turned on by the person to ask the agent to read the board now (`Review: requested at …`); turning it on also unchecks Editing. The agent turns it off by including `"reviewed": true` in a request, alone or with changes; a bare `{"reviewed": true}` applies even while the board is not shown.
 
+## Discussing a row, for the agent
+
+Any row of Plan, Now, Trail or Memory can be marked to discuss: a double-click marks it, and the right-click menu marks it with or without a note. Each mark goes into `<id>.state.json` beside the board, under `"discuss"`, with the row's panel, its text, the note, and, for an action, its id in the key (`action:<id>`). The rendition's third line counts the open marks. The agent answers in the conversation, then records a one-line answer, shown on the Desk, with a request:
+
+```json
+{ "discussed": [{ "id": "<mark id>", "answer": "A flaky watcher; fixed in the next release." }] }
+```
+
 ## Limits
 
 The transcript is Claude Code's internal format, not a published interface, and a new version of Claude Code may change it. This release was checked against Claude Code 2.1.170 to 2.1.299; the Desk says when a session's version is newer than that, and counts any record it does not recognise, so that a change shows rather than passing silently. Subagents' own transcripts are not shown.

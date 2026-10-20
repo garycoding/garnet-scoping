@@ -66,6 +66,8 @@ R2.5. **Touched this turn:** the files read and written, and the memory notes re
 
 R2.6. **Session facts:** the model and effort, the working folder and branch, linked pull requests, and how much of the context budget is left, where the transcript records them.
 
+R2.7. **Discuss:** the person can mark any row of Plan, Now, Trail or Memory to discuss with the agent: a double-click marks the row (or withdraws an open mark); the right-click menu marks it without a note or with one, or withdraws it. Marks are kept in the session's state file beside its board, shown on their rows and in a "To discuss" strip until withdrawn or dismissed, and stated at the head of the board's rendition. The agent answers in the conversation and records a one-line answer with its request (`"discussed"`), which the Desk shows on the row and in the strip.
+
 ### R3. The trail
 
 R3.1. Beneath the present state, the session turn by turn, newest at the bottom: each turn shows the person's message (with its images), the agent's actions in order with their descriptions, the files and notes touched, and the agent's closing message or recap.
