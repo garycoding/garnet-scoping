@@ -4,7 +4,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtemp, rm, readFile, writeFile, readdir } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { rendition, mergeElements, openBoard, cleanState } from '../src/main/board.js'
+import { rendition, mergeElements, openBoard, cleanState, inheritBoard } from '../src/main/board.js'
 
 const shape = (id, type, text, extra = {}) => [
   { id, type, x: 10, y: 20, width: 180, height: 80, version: 1, boundElements: [{ id: `${id}-t`, type: 'text' }], ...extra },
@@ -224,5 +224,35 @@ describe('the board on disk', () => {
     expect(a.dataURL).toMatch(/^data:image\/png;base64,iVBOR/)
     expect(bad.error).toMatch(/not an image/)
     b.close()
+  })
+
+  it('lets a resumed session take over the earlier board once, by copy', async () => {
+    const old = openBoard('old', { dir, onRequest() {}, onExternal() {} })
+    await old.save({ elements: shape('a', 'rectangle', 'Kept'), files: {} })
+    await old.discuss({ op: 'mark', mark: { panel: 'plan', key: 'plan:x', text: 'Settled', note: null } })
+    const settled = (await old.state()).discuss[0]
+    await old.discuss({ op: 'toggle', id: settled.id })
+    await old.discuss({ op: 'mark', mark: { panel: 'plan', key: 'plan:y', text: 'Still open', note: null } })
+    old.close()
+    // The new session has a board of its own already, with a shape on it.
+    const fresh = openBoard('new', { dir, onRequest() {}, onExternal() {} })
+    await fresh.save({ elements: shape('b', 'ellipse', 'Mine'), files: {} })
+    fresh.close()
+    expect(await inheritBoard('new', ['none', 'old'], dir)).toBe('old')
+    const data = JSON.parse(await readFile(join(dir, 'new.excalidraw'), 'utf8'))
+    expect(data.inheritedFrom).toBe('old')
+    expect(data.elements.filter((e) => !e.containerId).map((e) => e.id).sort()).toEqual(['a', 'b'])
+    const state = JSON.parse(await readFile(join(dir, 'new.state.json'), 'utf8'))
+    expect(state.discuss.map((m) => [m.text, m.status])).toEqual([['Settled', 'off']])
+    expect(await readFile(join(dir, 'new.board.md'), 'utf8')).toContain('"Kept"')
+    // Once only; and the old board is unchanged.
+    expect(await inheritBoard('new', ['old'], dir)).toBe(null)
+    expect(JSON.parse(await readFile(join(dir, 'old.excalidraw'), 'utf8')).inheritedFrom).toBeUndefined()
+    // A later save keeps the record of where the board came from.
+    const again = openBoard('new', { dir, onRequest() {}, onExternal() {} })
+    await again.load()
+    await again.save({ elements: data.elements, files: {} })
+    expect(JSON.parse(await readFile(join(dir, 'new.excalidraw'), 'utf8')).inheritedFrom).toBe('old')
+    again.close()
   })
 })
