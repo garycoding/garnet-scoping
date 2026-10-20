@@ -4,6 +4,24 @@ All notable changes to this project are recorded here.
 
 ## [Unreleased]
 
+## [v0.6.0] - 2026-10-19
+
+### Highlights
+
+_Highlights were not generated for this release._
+
+### Features
+
+- A Discuss badge in place of the flag (#40)
+
+### Bug fixes
+
+- The watcher fires only on new signals (#41)
+
+### Docs
+
+- In-flight idea, Quote (#39)
+
 ## [v0.5.0] - 2026-10-19
 
 ### Highlights
