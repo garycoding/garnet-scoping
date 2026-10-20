@@ -17,7 +17,7 @@ import { follow } from './follower.js'
 import { openBoard, inheritBoard } from './board.js'
 import { openAboutWindow, openLicensesWindow } from './about.js'
 import { loadSettings, saveSettings, clean } from './settings.js'
-import { openSetupInfo } from './setupInfo.js'
+import { openSetupInfo, installChannel } from './setupInfo.js'
 
 const CLAUDE = join(homedir(), '.claude')
 const PROJECTS = join(CLAUDE, 'projects')
@@ -179,7 +179,7 @@ function registerIpc() {
     if (TEXT_FILE.test(p) && info.size <= 1024 * 1024) return { kind: 'text', text: await readFile(p, 'utf8'), size: info.size }
     return { kind: 'other', size: info.size }
   })
-  // Shows a folder or file in the Finder (S7); only absolute paths.
+  // Shows a folder or file in the system's file manager (S7); only absolute paths.
   ipcMain.handle('finder:show', (_e, p) => {
     if (typeof p === 'string' && isAbsolute(p)) shell.showItemInFolder(p)
   })
@@ -225,7 +225,8 @@ function buildMenu() {
             },
           ]
         : []),
-      { label: 'File', submenu: [{ label: 'Sessions', accelerator: 'CmdOrCtrl+L', click: () => createListWindow() }, { type: 'separator' }, { role: 'close' }] },
+      // Without macOS's app menu, Settings is in the File menu.
+      { label: 'File', submenu: [{ label: 'Sessions', accelerator: 'CmdOrCtrl+L', click: () => createListWindow() }, ...(isMac ? [] : [prefs]), { type: 'separator' }, isMac ? { role: 'close' } : { role: 'quit' }] },
       { role: 'editMenu' },
       { label: 'View', submenu: [{ role: 'reload' }, { role: 'toggleDevTools' }, { type: 'separator' }, { role: 'resetZoom' }, { role: 'zoomIn' }, { role: 'zoomOut' }] },
       { role: 'windowMenu' },
@@ -237,6 +238,7 @@ function buildMenu() {
 app.whenReady().then(() => {
   settingsFile = join(app.getPath('userData'), 'settings.json')
   settings = loadSettings(settingsFile)
+  installChannel().catch(() => {})
   refuseNetwork()
   registerIpc()
   buildMenu()

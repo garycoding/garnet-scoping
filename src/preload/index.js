@@ -12,6 +12,8 @@ contextBridge.exposeInMainWorld('garnet', {
   listMemory: () => ipcRenderer.invoke('memory:list'),
   readMemory: (path) => ipcRenderer.invoke('memory:read', path),
   showInFinder: (path) => ipcRenderer.invoke('finder:show', path),
+  // The words for the system's file manager: the Finder on macOS.
+  fileManager: process.platform === 'darwin' ? 'the Finder' : 'the file manager',
   openFile: (path) => ipcRenderer.invoke('file:open', path),
   readFile: (path) => ipcRenderer.invoke('file:read', path),
   discuss: (op) => ipcRenderer.invoke('session:discuss', op),

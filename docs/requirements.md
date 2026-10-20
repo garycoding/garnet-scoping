@@ -20,7 +20,7 @@ These were ruled before this document was written.
 - D1. garnet-scoping is a desktop application, separate from the agent and from any editor. It lists sessions, and for any session opens a Desk in its own window.
 - D2. A Desk shows the session's present state, with the session's trail beneath it (R2, R3).
 - D3. A Desk has a Memory pane (R4).
-- D4. The first version runs on macOS only.
+- D4. The app runs on macOS and on Ubuntu (the first versions ran on macOS only).
 - D5. The repository is public, under the garycoding account, and the code is licensed under AGPL-3.0-or-later.
 - D6. The app is named garnet-scoping; "Desk" names a part of its window (since D9, one of the window's panels), not the app.
 - D7. Changes to the details are expected to follow from use: the first version is the starting point, not a fixed design.
@@ -37,7 +37,7 @@ These were proposed and then settled under the instruction to proceed as recomme
 - S4. The name and icon are reserved as the project's unregistered marks (P4).
 - S5. Subagents' and background agents' own transcripts are left out of the first version (Q1).
 - S6. Messages the person sends while the agent is working appear in the trail where they arrived, marked as sent mid-turn (Q2).
-- S7. A Desk can show the session's working folder, and any touched file, in the Finder (Q3).
+- S7. A Desk can show the session's working folder, and any touched file, in the system's file manager (the Finder on macOS) (Q3).
 - S8. Finished sessions stay listed; nothing is hidden by age (Q4).
 
 ## Requirements
