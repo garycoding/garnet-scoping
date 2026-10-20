@@ -22,10 +22,10 @@ Download from the [releases page](https://github.com/garycoding/garnet-scoping/r
   xattr -dr com.apple.quarantine /Applications/garnet-scoping.app
   ```
 
-- **Ubuntu (x64):** install the `.deb`, which puts the app in `/opt/garnet-scoping` and in the applications menu:
+- **Ubuntu (x64):** the `.deb` puts the app in `/opt/garnet-scoping` and in the applications menu. On Ubuntu, install with:
 
   ```bash
-  sudo apt install ./garnet-scoping-<version>-amd64.deb
+  sudo apt install ./garnet-scoping-0.7.0-amd64.deb
   ```
 
   Or run the `.AppImage` directly after `chmod +x` on it. With the AppImage, the watcher cannot find the app's binary on its own; set `GARNET_SCOPING_APP` to the AppImage's path in your shell profile.
@@ -81,7 +81,7 @@ The Hold button on a session's window asks the agent to stop after its current s
 
 Review, Discuss and Hold are written to the session's state file. For the agent to notice them without a message from the person, open **Set-up Info** in the app's menu:
 
-- **The watcher (any session).** The first block is a prompt to paste into Claude Code once. Claude installs a watcher script, a SessionStart hook that tells every new session to run it in the background, and a section of rules in `~/.claude/CLAUDE.md`. The watcher exits when a signal appears, which reaches the agent as a notice, mid-task or while idle.
+- **The watcher (any session).** The first block is a prompt to paste into Claude Code once. Claude installs a watcher script, hooks with which Claude Code itself runs it (`asyncRewake` hooks at session start and at the end of every turn), and a section of rules in `~/.claude/CLAUDE.md`. When a signal appears, the watcher exits and Claude Code wakes the session at once, mid-task or idle, with a description of the new signal. Nothing depends on the agent remembering to watch, and since the desktop app does not count a hook as work, a waiting watcher raises no "Claude is still working" warning on quit.
 - **The channel (terminal sessions).** garnet-scoping ships a channel server, an MCP server that pushes each signal into the session the moment it appears. Claude Code supports channels as a research preview, in terminal sessions only; the desktop app does not load them yet. The second block is the command that starts a terminal session with it. The server runs with the app's own binary, needs no separate Node install, and opens no network connection.
 
 ## Limits
