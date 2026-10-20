@@ -50,19 +50,21 @@ Perception makes the other two possible: the person can point at the agent's wor
 
 The same axioms support all the intents, from different angles.
 
-1. **The record over the report.** What the Desk shows is derived from the transcript, not from the agent's account of its work. Where the two differ, the Desk shows what happened.
+1. **Easy to use means will be used.** A feature that takes effort is used only when it seems worth the trouble, which is less often than it would help. Every signal, view and exchange is made as easy as it can be, for the person and for the agent alike.
 
-2. **No cost to the agent's work.** The app only reads; a watcher costs nothing while it waits; a signal interrupts only when the person means it to. A feature that slows the agent down needs a reason stronger than the help it gives.
+2. **The record over the report.** What the Desk shows is derived from the transcript, not from the agent's account of its work. Where the two differ, the Desk shows what happened.
 
-3. **Read-only, local and private.** The app never writes under the Claude configuration directory and makes no network connection, because a transcript can hold anything. Its own files live in its own folder.
+3. **No cost to the agent's work.** The app only reads; a watcher costs nothing while it waits; a signal interrupts only when the person means it to. A feature that slows the agent down needs a reason stronger than the help it gives.
 
-4. **Every signal is explicit and cleared by its answer.** A signal is something the person did on purpose (pressed, marked, asked for), kept on disk until the agent answers or the person withdraws it, and visible in both states. Nothing is inferred from silence.
+4. **Read-only, local and private.** The app never writes under the Claude configuration directory and makes no network connection, because a transcript can hold anything. Its own files live in its own folder.
 
-5. **Change shows, never fails silently.** Claude Code's transcript is an internal format that changes with its releases. The app reads it through one module, counts what it does not recognise, and says when a session runs a version newer than any it was checked against, so that a break is visible as soon as it happens.
+5. **Every signal is explicit and cleared by its answer.** A signal is something the person did on purpose (pressed, marked, asked for), kept on disk until the agent answers or the person withdraws it, and visible in both states. Nothing is inferred from silence.
 
-6. **Its own plain identity.** The app looks and behaves as itself: plain type, crisp lines, its own colours, and no imitation of hand-drawn or physical things.
+6. **Change shows, never fails silently.** Claude Code's transcript is an internal format that changes with its releases. The app reads it through one module, counts what it does not recognise, and says when a session runs a version newer than any it was checked against, so that a break is visible as soon as it happens.
 
-7. **Improved together.** The app is improved iteratively by the person and the agent who use it. Either may propose a change for the person, for the agent, or for their collaboration, and the person decides.
+7. **Its own plain identity.** The app looks and behaves as itself: plain type, crisp lines, its own colours, and no imitation of hand-drawn or physical things.
+
+8. **Improved together.** The app is improved iteratively by the person and the agent who use it. Either may propose a change for the person, for the agent, or for their collaboration, and the person decides.
 
 ## Guiding questions
 
