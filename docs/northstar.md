@@ -18,7 +18,7 @@ garnet-scoping serves three complementary intents: facets of one purpose, presen
 
 1. **Shared perception, both ways.** The person perceives the agent's state as it is, and the agent perceives what the person is doing and asking for, without either having to narrate it to the other.
 
-2. **Accurate, collaborative communication.** The person and the agent communicate concepts exactly, on a shared surface both can change, so that what one means is what the other understands.
+2. **Accurate, easy communication, both ways.** The person and the agent communicate concepts exactly, on a shared surface both can change, so that what one means is what the other understands; and doing so takes little effort from either, so that it happens whenever it would help rather than only when it is worth the trouble.
 
 3. **Steering without loss.** The person can direct the agent's attention, ask questions about its work, and stop it at a step boundary at any moment, and nothing in progress is cancelled or lost.
 
@@ -28,9 +28,11 @@ From the agent to the person, perception is the Desk: the present state at a gla
 
 From the person to the agent, perception is the person's signals, each kept in a file the agent can read and each delivered without a message: Editing tells the agent that the board is still being changed; Review, Discuss and Hold ask for its attention. They reach the agent through a watcher in every session, or, where Claude Code allows it, through a channel that pushes them into the session the moment they appear.
 
-### 2. Accurate, collaborative communication
+### 2. Accurate, easy communication, both ways
 
 The board is a whiteboard of shapes with text, lines and arrows, shared by the person and the agent. The person draws; the agent reads the board as a plain-text rendition and changes it with a short request, never by writing the drawing's own format. A structure drawn is understood faster and more exactly than one described, and an answer placed beside the question it answers keeps the two together.
+
+Communication must also be easy, in both directions. For the person, a signal is one gesture: a press of Review, a double-click on a row, an optional note of a line, a shape dropped on the board. For the agent, it is a short text file to read and a short request to write, never the board's own format, and signals arrive without the agent having to look for them. Friction on either side means the communication does not happen, and a concept left uncommunicated costs more than one communicated roughly.
 
 Communication is also precise about its subject. Discuss points at one row of the Desk, an action, a plan step, a turn, a message or a memory note, optionally with a note, so that a question about the agent's work names exactly the work it is about, and the agent's answer is shown on that row.
 
@@ -68,6 +70,7 @@ When making a decision, these are the questions to keep answering:
 
 - Does it help the person see what the agent is actually doing, or the agent see what the person is doing and asking for?
 - Does it make a concept, a question or an answer more exact, and keep it beside what it is about?
+- Is it easy for both the person and the agent: one gesture for the person, a short read or write for the agent?
 - Can the person use it at any moment, and does it leave all work in progress intact?
 - Is it derived from the record rather than from the agent's report?
 - Does it cost the agent's work anything, and is the help worth that cost?
