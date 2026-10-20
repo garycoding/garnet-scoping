@@ -68,7 +68,14 @@ function openSession(info) {
   })
   windows.set(info.id, { win, follower, board, project: info.project, file: info.file })
   load(win, 'session', { id: info.id })
-  win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+  // A link in rendered text opens in the system's browser; the window itself
+  // never navigates away from the app's page.
+  const openLink = (url) => /^https?:/i.test(url) && shell.openExternal(url)
+  win.webContents.setWindowOpenHandler(({ url }) => (openLink(url), { action: 'deny' }))
+  win.webContents.on('will-navigate', (e, url) => {
+    e.preventDefault()
+    openLink(url)
+  })
   win.on('closed', () => {
     board.close()
     follower.close()

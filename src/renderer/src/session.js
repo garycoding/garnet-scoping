@@ -100,7 +100,9 @@ function renderPresent() {
   const lw = view.lastWord
   const box = $('last-word')
   box.replaceChildren()
-  if (lw?.text) box.append(el('div', 'speech', lw.text.length > 1200 ? lw.text.slice(0, 1200) + '…' : lw.text))
+  // The agent writes Markdown; it is shown rendered, whole, in a box that
+  // scrolls when it is long.
+  if (lw?.text) box.append(Object.assign(markdown(lw.text), { className: 'speech markdown' }))
   if (lw?.recap) box.append(el('div', 'recap', lw.recap))
   if (lw?.ask) box.append(el('div', 'awaiting', `Asked: ${lw.ask}`))
   if (lw?.agentSpokeLast) box.append(el('div', 'awaiting', `The agent has spoken last${lw.at ? ` (${ago(lw.at)})` : ''}: your turn.`))

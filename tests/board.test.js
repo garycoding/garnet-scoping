@@ -10,6 +10,14 @@ const shape = (id, type, text, extra = {}) => [
   { id, type, x: 10, y: 20, width: 180, height: 80, version: 1, boundElements: [{ id: `${id}-t`, type: 'text' }], ...extra },
   { id: `${id}-t`, type: 'text', text: text.replace(' ', '\n'), originalText: text, containerId: id, x: 0, y: 0, width: 1, height: 1, version: 1 },
 ]
+// Waits until cond() holds, or fails after ms.
+async function until(cond, ms = 5000) {
+  const end = Date.now() + ms
+  while (!cond()) {
+    if (Date.now() > end) throw new Error('timed out waiting')
+    await new Promise((r) => setTimeout(r, 25))
+  }
+}
 const arrow = (id, from, to) => ({ id, type: 'arrow', x: 0, y: 0, width: 1, height: 1, version: 1, startBinding: { elementId: from }, endBinding: { elementId: to } })
 
 describe('the rendition', () => {
@@ -60,11 +68,10 @@ describe('the board on disk', () => {
     const b = openBoard('s2', { dir, onRequest: (r) => got.push(r), onExternal() {}, onPending: () => pending++ })
     await new Promise((r) => setTimeout(r, 50))
     await writeFile(b.paths.request, JSON.stringify({ add: [{ id: 'z', kind: 'rectangle', text: 'Z' }] }))
-    await new Promise((r) => setTimeout(r, 400))
+    await until(() => pending > 0)
     expect(got).toEqual([])
-    expect(pending).toBeGreaterThan(0)
     b.ready()
-    await new Promise((r) => setTimeout(r, 200))
+    await until(() => got.length > 0)
     expect(got).toEqual([{ request: { add: [{ id: 'z', kind: 'rectangle', text: 'Z' }] } }])
     await expect(readFile(b.paths.request)).rejects.toThrow()
     b.close()
@@ -75,7 +82,7 @@ describe('the board on disk', () => {
     const b = openBoard('s3', { dir, onRequest: (r) => got.push(r), onExternal() {} })
     b.ready()
     await writeFile(b.paths.request, '{ not json')
-    await new Promise((r) => setTimeout(r, 400))
+    await until(() => got.length > 0)
     expect(got[0].error).toMatch(/not valid JSON/)
     b.close()
   })
