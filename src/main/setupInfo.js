@@ -9,6 +9,17 @@
 import { app, BrowserWindow, shell } from 'electron'
 import { join } from 'node:path'
 import { homedir } from 'node:os'
+import { mkdir, cp } from 'node:fs/promises'
+
+// The channel's scripts are copied to the app's own folder at start, so that
+// Claude Code finds them at one path whatever the install: an AppImage runs
+// from a mount whose path changes on every launch.
+export const CHANNEL_DIR = join(homedir(), '.garnet-scoping', 'channel')
+export async function installChannel() {
+  const from = join(app.isPackaged ? process.resourcesPath : join(__dirname, '../..'), 'channel')
+  await mkdir(CHANNEL_DIR, { recursive: true })
+  await cp(from, CHANNEL_DIR, { recursive: true, force: true })
+}
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
 
@@ -19,8 +30,12 @@ const resources = () => (app.isPackaged ? process.resourcesPath : join(__dirname
 export function setupTexts() {
   const res = resources()
   const setup = join(res, 'setup')
-  const binary = app.isPackaged ? process.execPath : '/Applications/garnet-scoping.app/Contents/MacOS/garnet-scoping'
-  const channelScript = app.isPackaged ? join(res, 'channel', 'garnet-channel.mjs') : '/Applications/garnet-scoping.app/Contents/Resources/channel/garnet-channel.mjs'
+  // The binary that runs the channel: the AppImage itself when the app runs
+  // from one; otherwise the app's executable (in development, where the
+  // installed app would be: the macOS bundle, or the Ubuntu package under /opt).
+  const installed = process.platform === 'darwin' ? '/Applications/garnet-scoping.app/Contents/MacOS/garnet-scoping' : '/opt/garnet-scoping/garnet-scoping'
+  const binary = process.env.APPIMAGE || (app.isPackaged ? process.execPath : installed)
+  const channelScript = join(CHANNEL_DIR, 'garnet-channel.mjs')
   const mcpPath = join(homedir(), '.garnet-scoping', 'channel.mcp.json')
   const mcp = JSON.stringify({ mcpServers: { garnet: { command: binary, args: [channelScript], env: { ELECTRON_RUN_AS_NODE: '1' } } } }, null, 2)
   const prompt = `Please set up garnet-scoping for all my Claude Code sessions. Read each file before installing it.

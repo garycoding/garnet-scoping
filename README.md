@@ -2,7 +2,7 @@
 
 <img src="build/icon.png" alt="The garnet-scoping icon" width="128" align="right">
 
-A macOS desktop app that shows what a Claude Code session is doing, for the person working with it, and gives the person and the agent a board on which to draw together.
+A desktop app for macOS and Ubuntu that shows what a Claude Code session is doing, for the person working with it, and gives the person and the agent a board on which to draw together.
 
 It reads each session's transcript, the file Claude Code writes as the session runs, and lists the sessions on the machine, the most recent first. Opening one shows its window:
 
@@ -14,11 +14,21 @@ The app only reads what Claude Code writes: it never writes under `~/.claude`, a
 
 ## Install
 
-Download the `.dmg` from the [releases page](https://github.com/garycoding/garnet-scoping/releases) (Apple silicon), open it and drag garnet-scoping to Applications. The build is not signed, so macOS refuses the first launch; open it once with Control-click, Open, or run:
+Download from the [releases page](https://github.com/garycoding/garnet-scoping/releases).
 
-```bash
-xattr -dr com.apple.quarantine /Applications/garnet-scoping.app
-```
+- **macOS (Apple silicon):** open the `.dmg` and drag garnet-scoping to Applications. The build is not signed, so macOS refuses the first launch; open it once with Control-click, Open, or run:
+
+  ```bash
+  xattr -dr com.apple.quarantine /Applications/garnet-scoping.app
+  ```
+
+- **Ubuntu (x64):** install the `.deb`, which puts the app in `/opt/garnet-scoping` and in the applications menu:
+
+  ```bash
+  sudo apt install ./garnet-scoping-<version>-amd64.deb
+  ```
+
+  Or run the `.AppImage` directly after `chmod +x` on it. With the AppImage, the watcher cannot find the app's binary on its own; set `GARNET_SCOPING_APP` to the AppImage's path in your shell profile.
 
 The app does not check for newer versions, since it makes no network connection; new releases appear on the releases page.
 

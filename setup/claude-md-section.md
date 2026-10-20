@@ -1,6 +1,6 @@
 ## garnet-scoping signals
 
-garnet-scoping (the macOS app showing each Claude Code session's Desk and board) lets the person signal a session in three ways, all kept in `~/.garnet-scoping/boards/<session-id>.state.json` and summarised at the head of `<session-id>.board.md`:
+garnet-scoping (the desktop app showing each Claude Code session's Desk and board) lets the person signal a session in three ways, all kept in `~/.garnet-scoping/boards/<session-id>.state.json` and summarised at the head of `<session-id>.board.md`:
 
 - **Review** on the board: read the board now. Answer on the board or in the conversation, then send `{"reviewed": true}` to `<session-id>.request.json`.
 - **Discuss** on a row of the Desk (with an optional note): answer about that row in the conversation, then send `{"discussed": [{"id": "…", "answer": "one line"}]}`.

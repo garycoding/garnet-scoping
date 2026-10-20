@@ -14,21 +14,30 @@ id="${1:-$CLAUDE_CODE_SESSION_ID}"
 dir="$HOME/.garnet-scoping/boards"
 state="$dir/$id.state.json"
 seen="$dir/$id.watched"
-app="/Applications/garnet-scoping.app/Contents/MacOS/garnet-scoping"
+# The app's own binary, run in Node mode to read the state file: on macOS
+# the bundle, on Ubuntu the package under /opt; GARNET_SCOPING_APP overrides
+# (an AppImage, say).
+app="${GARNET_SCOPING_APP:-}"
+for c in /Applications/garnet-scoping.app/Contents/MacOS/garnet-scoping /opt/garnet-scoping/garnet-scoping; do
+  [ -z "$app" ] && [ -x "$c" ] && app="$c"
+done
+# The modification time of a file: BSD stat on macOS, GNU stat on Linux.
+mtime() { stat -f %m "$1" 2>/dev/null || stat -c %Y "$1" 2>/dev/null; }
 
 # The signals standing in the state file, one per line, each with the time it
 # was given, so that a signal given again counts as new.
 signals() {
-  if [ -x "$app" ]; then
-    ELECTRON_RUN_AS_NODE=1 "$app" -e '
+  local out
+  if [ -n "$app" ] && [ -x "$app" ] && out=$(ELECTRON_RUN_AS_NODE=1 "$app" -e '
       const s = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"))
       const out = []
       if (s.review) out.push("review " + s.reviewAt)
       if (s.hold === "requested") out.push("hold " + s.holdAt)
       for (const m of s.discuss || []) if (m.status === "open") out.push("discuss " + m.id + " " + m.at)
-      console.log(out.join("\n"))' "$state" 2>/dev/null
+      console.log(out.join("\n"))' "$state" 2>/dev/null); then
+    echo "$out"
   else
-    # Without the app, any standing signal counts.
+    # Without a working app binary, any standing signal counts.
     grep -qE '"review": true|"status": "open"|"hold": "requested"' "$state" 2>/dev/null && date +%s
   fi
 }
@@ -36,7 +45,7 @@ signals() {
 date -u +"garnet-watch started %H:%M:%SZ for $id"
 last=""
 while true; do
-  m=$(stat -f %m "$state" 2>/dev/null)
+  m=$(mtime "$state")
   if [ -n "$m" ] && [ "$m" != "$last" ]; then
     last="$m"
     now=$(signals | sort)
