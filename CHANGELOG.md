@@ -4,6 +4,16 @@ All notable changes to this project are recorded here.
 
 ## [Unreleased]
 
+## [v0.4.1] - 2026-10-19
+
+### Highlights
+
+_Highlights were not generated for this release._
+
+### Features
+
+- For you, the files the agent sent the person (#32)
+
 ## [v0.4.0] - 2026-10-19
 
 ### Highlights
