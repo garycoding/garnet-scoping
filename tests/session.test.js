@@ -131,6 +131,15 @@ describe('the session model', () => {
     expect(s.turns[0].items.at(-1)).toMatchObject({ type: 'notification', text: 'Waited', status: 'completed' })
   })
 
+  it('checks off the app\'s task list at wrap-up', () => {
+    const s = build([
+      F.human('do three things'),
+      F.assistant([F.tool('p', 'mcp__ccd_turn__update_plan', { items: [{ content: 'One', status: 'completed' }, { content: 'Two', status: 'in_progress' }, { content: 'Three', status: 'pending' }] })]),
+      F.assistant([F.tool('w', 'mcp__ccd_turn__wrap_up', { recap: 'Done.' })]),
+    ])
+    expect(s.plan.items.map((i) => i.status)).toEqual(['completed', 'completed', 'completed'])
+  })
+
   it('keeps the wrap-up recap and question, and the person\'s mid-turn messages', () => {
     const s = build([
       F.human('go'),
