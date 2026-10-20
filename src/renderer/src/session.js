@@ -55,9 +55,14 @@ window.addEventListener('keydown', (e) => e.key === 'Escape' && ($('viewer').hid
 // menu marks it with or without a note. Marks live in the session's state
 // file, where the agent's watcher sees them; the agent answers them there.
 let marks = []
-const PANEL_NAMES = { plan: 'Plan', now: 'Now', trail: 'Trail', memory: 'Memory', foryou: 'For you' }
+const FLAG_SVG = '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3.5 1.5v13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M4.2 2.2h8.3l-2 3.1 2 3.1H4.2z" fill="currentColor"/></svg>'
 const openMark = (key) => marks.find((m) => m.key === key && m.status === 'open')
-const answeredMark = (key) => marks.findLast((m) => m.key === key && m.status === 'answered')
+// A row's mark: its open one if any, else its latest (turned off or answered).
+const markOf = (key) => openMark(key) ?? marks.findLast((m) => m.key === key)
+const answeredMark = (key) => marks.findLast((m) => m.key === key && m.answer)
+function toggleFlag(id) {
+  return window.garnet.discuss({ op: 'toggle', id }).then(setMarks)
+}
 
 // ---- Hold (R2.8) ----
 // The person asks the agent to stop after its current step; the agent
@@ -88,7 +93,6 @@ function setMarks(state) {
     renderTrail()
     renderMemory()
   }
-  renderStrip()
 }
 
 function mark(row, note = null) {
@@ -174,32 +178,33 @@ function markable(node, row, onClick = null, extra = []) {
     toggleMark(row)
   })
   node.addEventListener('contextmenu', (e) => showMenu(e, row, extra))
-  if (openMark(row.key)) node.classList.add('discuss-open')
+  // The flag column: empty until the row is marked; then a flag, lit while
+  // it is a request to discuss, dim when turned off or answered. A click on
+  // the flag turns it off or on again.
+  node.classList.add('flaggable')
+  const m = markOf(row.key)
+  const cell = el('span', 'flag-cell')
+  if (m) {
+    const flag = el('button', `flag ${m.status === 'open' ? 'on' : 'off'}`)
+    flag.type = 'button'
+    flag.innerHTML = FLAG_SVG
+    flag.title =
+      m.status === 'open'
+        ? `A request to discuss${m.note ? `: ${m.note}` : ''}. Click to turn it off.`
+        : `${m.status === 'answered' ? 'Answered' : 'Turned off'}${m.note ? ` (${m.note})` : ''}. Click to ask again.`
+    flag.addEventListener('click', (e) => {
+      e.stopPropagation()
+      toggleFlag(m.id)
+    })
+    flag.addEventListener('dblclick', (e) => e.stopPropagation())
+    cell.append(flag)
+  }
+  node.prepend(cell)
   const done = answeredMark(row.key)
   if (done?.answer) node.append(el('div', 'discuss-answer', `Answered: ${done.answer}`))
   return node
 }
 
-function renderStrip() {
-  const strip = $('discuss-strip')
-  const shown = marks.filter((m) => m.status === 'open' || m.answer)
-  strip.hidden = !shown.length
-  strip.replaceChildren(
-    el('span', 'strip-title', 'To discuss'),
-    ...shown.map((m) => {
-      const item = el('span', `strip-item ${m.status}`)
-      item.append(el('span', 'where', PANEL_NAMES[m.panel] ?? m.panel), el('span', 'what', m.text))
-      if (m.note) item.append(el('span', 'note', `“${m.note}”`))
-      if (m.status === 'answered') item.append(el('span', 'answer', m.answer))
-      item.title = [m.text, m.note && `Note: ${m.note}`, m.answer && `Answer: ${m.answer}`].filter(Boolean).join('\n')
-      const x = el('button', 'x', m.status === 'open' ? 'Withdraw' : 'Dismiss')
-      x.type = 'button'
-      x.addEventListener('click', () => withdraw(m.id))
-      item.append(x)
-      return item
-    }),
-  )
-}
 
 async function showDetail(action) {
   const d = await window.garnet.detail(action.id)
