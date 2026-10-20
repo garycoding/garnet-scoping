@@ -49,6 +49,8 @@ const straighten = (els) =>
   els.map((e) => (offStyle(e) ? bump(e, { roughness: 0, ...(DEFAULT_INKS.has(e.strokeColor) ? { strokeColor: INK } : {}), ...(e.type === 'text' ? { fontFamily: NORMAL_FONT } : {}) }) : e))
 
 let elements = []
+// The images' data, by file id, as loaded; the editor keeps it from then on.
+let initialFiles = {}
 let api = null
 let savedVersion = -1
 let saveTimer = null
@@ -69,7 +71,7 @@ function scheduleSave() {
     const v = getSceneVersion(elements)
     if (v === savedVersion) return
     savedVersion = v
-    window.garnet.board.save({ elements }).catch((err) => {
+    window.garnet.board.save({ elements, files: api?.getFiles() ?? initialFiles }).catch((err) => {
       savedVersion = -1
       setStatus(`The board could not be saved: ${err.message}`, true)
     })
@@ -138,7 +140,7 @@ export function applyRequest(req) {
   }
 
   const adds = Array.isArray(req.add) ? req.add : []
-  const shapes = adds.filter((a) => a && (SHAPES.has(a.kind) || a.kind === 'text'))
+  const shapes = adds.filter((a) => a && (SHAPES.has(a.kind) || a.kind === 'text' || a.kind === 'image'))
   const skeleton = []
   for (const a of shapes) {
     if (a.id && find(a.id)) {
@@ -148,7 +150,15 @@ export function applyRequest(req) {
     const placed = Number.isFinite(a.x) && Number.isFinite(a.y) ? { x: a.x, y: a.y } : nextSlot()
     const { x, y } = placed
     const size = a.kind === 'diamond' ? DIAMOND : SIZE
-    if (a.kind === 'text') skeleton.push({ type: 'text', ...(a.id ? { id: String(a.id) } : {}), x, y, text: String(a.text ?? ''), fontFamily: NORMAL_FONT })
+    if (a.kind === 'image') {
+      if (a.error || !a.dataURL) {
+        done.problems.push(`image ${a.id ?? a.path ?? ''}: ${a.error ?? 'no image data'}`)
+        continue
+      }
+      const fileId = `img${Date.now().toString(36)}${Math.floor(Math.random() * 46656).toString(36)}`
+      api?.addFiles([{ id: fileId, dataURL: a.dataURL, mimeType: a.mimeType, created: Date.now() }])
+      skeleton.push({ type: 'image', ...(a.id ? { id: String(a.id) } : {}), x, y, width: a.width, height: a.height, fileId })
+    } else if (a.kind === 'text') skeleton.push({ type: 'text', ...(a.id ? { id: String(a.id) } : {}), x, y, text: String(a.text ?? ''), fontFamily: NORMAL_FONT })
     else skeleton.push({ type: a.kind, ...PLAIN, ...(a.id ? { id: String(a.id) } : {}), x, y, width: a.width ?? size.width, height: a.height ?? size.height, ...(a.text ? { label: { text: String(a.text), fontFamily: NORMAL_FONT } } : {}) })
   }
   if (skeleton.length) {
@@ -222,6 +232,27 @@ export function refreshBoard() {
   api?.refresh()
 }
 
+// Gives each image in a request its size: the one asked for, or its own,
+// scaled down to at most IMAGE_MAX on its longer side.
+const IMAGE_MAX = 480
+async function sizeImages(req) {
+  for (const a of Array.isArray(req?.add) ? req.add : []) {
+    if (a?.kind !== 'image' || !a.dataURL) continue
+    try {
+      const img = new Image()
+      img.src = a.dataURL
+      await img.decode()
+      const w = img.naturalWidth || IMAGE_MAX
+      const h = img.naturalHeight || IMAGE_MAX
+      const scale = Number.isFinite(a.width) ? a.width / w : Math.min(1, IMAGE_MAX / Math.max(w, h))
+      a.width = Math.round(w * scale)
+      a.height = Math.round(h * scale)
+    } catch {
+      a.error = 'the image could not be read'
+    }
+  }
+}
+
 export async function mountBoard(container) {
   const info = await window.garnet.board.open()
   // The header: where the agent finds the rendition and writes requests.
@@ -273,14 +304,16 @@ export async function mountBoard(container) {
   container.replaceChildren(head, holder)
 
   elements = info.scene?.elements ? restoreElements(info.scene.elements, null) : []
+  initialFiles = info.scene?.files ?? {}
   const convert = info.scene && (info.scene.style !== 'plain' || elements.some(offStyle))
   // A change of face changes the text's measured size, so it is remeasured.
   if (convert) elements = restoreElements(straighten(toPlain(elements)), null, { refreshDimensions: true })
   savedVersion = convert ? -1 : getSceneVersion(elements)
   knownVersion = getSceneVersion(elements)
 
-  window.garnet.board.onRequest(({ request, error }) => {
+  window.garnet.board.onRequest(async ({ request, error }) => {
     if (error) return setStatus(error, true)
+    await sizeImages(request)
     const d = applyRequest(request)
     setStatus(`The agent ${[d.added && `added ${d.added}`, d.relabelled && `relabelled ${d.relabelled}`, d.removed && `removed ${d.removed}`].filter(Boolean).join(', ') || 'changed nothing'}.${d.problems.length ? ` Problems: ${d.problems.join('; ')}.` : ''}`, d.problems.length > 0)
   })
@@ -296,7 +329,7 @@ export async function mountBoard(container) {
         if (first) window.garnet.board.ready()
         if (first && convert) scheduleSave()
       },
-      initialData: { elements, appState: { theme: 'dark', viewBackgroundColor: GROUND, ...PLAIN_APP_STATE }, scrollToContent: true },
+      initialData: { elements, files: initialFiles, appState: { theme: 'dark', viewBackgroundColor: GROUND, ...PLAIN_APP_STATE }, scrollToContent: true },
       theme: 'dark',
       onChange: (els) => {
         elements = els
@@ -311,7 +344,7 @@ export async function mountBoard(container) {
         scheduleSave()
       },
       // The board's own controls: no style choices beyond colour, stroke and edges.
-      UIOptions: { canvasActions: { loadScene: false, saveToActiveFile: false, export: false, toggleTheme: false }, tools: { image: false } },
+      UIOptions: { canvasActions: { loadScene: false, saveToActiveFile: false, export: false, toggleTheme: false }, tools: { image: true } },
     }),
   )
 }
