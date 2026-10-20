@@ -152,7 +152,11 @@ export function openBoard(id, { title = null, dir = BOARDS, onRequest, onExterna
     await stateLoaded
     const before = state
     state = cleanState({ ...state, ...next })
-    if (state.review && !before.review) state.reviewAt = new Date().toISOString().replace(/\.\d+Z$/, 'Z')
+    // Asking for a review means the person has finished editing.
+    if (state.review && !before.review) {
+      state.reviewAt = new Date().toISOString().replace(/\.\d+Z$/, 'Z')
+      state.editing = false
+    }
     await mkdir(dir, { recursive: true })
     await writeAtomic(p.state, JSON.stringify(state, null, 2))
     await writeRendition()

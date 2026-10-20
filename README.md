@@ -48,7 +48,7 @@ The board's header carries the rendition's path and a button that copies an inst
 Two controls in the header carry the person's signals, and the rendition states both in its first lines:
 
 - **Editing** is checked by any change the person makes, and unchecked by the person when done (`Editing: yes` or `no`).
-- **Review** is turned on by the person to ask the agent to read the board now (`Review: requested at …`). The agent turns it off by including `"reviewed": true` in a request, alone or with changes; a bare `{"reviewed": true}` applies even while the board is not shown.
+- **Review** is turned on by the person to ask the agent to read the board now (`Review: requested at …`); turning it on also unchecks Editing. The agent turns it off by including `"reviewed": true` in a request, alone or with changes; a bare `{"reviewed": true}` applies even while the board is not shown.
 
 ## Limits
 

@@ -253,7 +253,8 @@ export async function mountBoard(container) {
   reviewButton.type = 'button'
   reviewButton.className = 'board-review'
   reviewButton.textContent = 'Review'
-  reviewButton.addEventListener('click', () => setState({ review: !boardState.review }))
+  // Asking for a review ends editing.
+  reviewButton.addEventListener('click', () => setState(boardState.review ? { review: false } : { review: true, editing: false }))
   const signals = document.createElement('span')
   signals.className = 'board-signals'
   signals.append(editing, reviewButton)
