@@ -131,6 +131,18 @@ describe('the session model', () => {
     expect(s.turns[0].items.at(-1)).toMatchObject({ type: 'notification', text: 'Waited', status: 'completed' })
   })
 
+  it('keeps the files the agent sent the person, newest first', () => {
+    const s = build([
+      F.human('make me an icon'),
+      F.assistant([F.tool('a', 'SendUserFile', { files: ['/tmp/one.png'], caption: 'First' })]),
+      F.assistant([F.tool('b', 'SendUserFile', { files: ['out/two.png', '/tmp/three.pdf'] })]),
+    ])
+    expect(s.deliveries.map((d) => [d.caption, d.files])).toEqual([
+      [null, ['/work/demo/out/two.png', '/tmp/three.pdf']],
+      ['First', ['/tmp/one.png']],
+    ])
+  })
+
   it('checks off the app\'s task list at wrap-up', () => {
     const s = build([
       F.human('do three things'),
