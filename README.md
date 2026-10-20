@@ -55,7 +55,7 @@ Two controls in the header carry the person's signals, and the rendition states 
 
 ## Discussing a row, for the agent
 
-Any row of Plan, Now, Trail or Memory can be marked to discuss: a double-click marks it, and the right-click menu marks it with or without a note. Each mark goes into `<id>.state.json` beside the board, under `"discuss"`, with the row's panel, its text, the note, and, for an action, its id in the key (`action:<id>`). The rendition's third line counts the open marks. The agent answers in the conversation, then records a one-line answer, shown on the Desk, with a request:
+Any row of Plan, Now, Trail, Memory or For you can be marked to discuss: the right-click menu marks it with or without a note, and a double-click marks it too. A marked row shows a flag at its left, lit while it is a request; clicking the flag turns the request off or on again. Each mark goes into `<id>.state.json` beside the board, under `"discuss"`, with the row's panel, its text, the note, its status (`open`, `off` or `answered`), and, for an action, its id in the key (`action:<id>`). The rendition's third line counts the open marks. The agent answers in the conversation, then records a one-line answer, shown on the Desk, with a request:
 
 ```json
 { "discussed": [{ "id": "<mark id>", "answer": "A flaky watcher; fixed in the next release." }] }
