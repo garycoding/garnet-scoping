@@ -12,6 +12,8 @@ import { join } from 'node:path'
 import { homedir } from 'node:os'
 import { createHash } from 'node:crypto'
 
+const POLL_MS = 2000
+
 export const BOARDS = join(homedir(), '.garnet-scoping', 'boards')
 
 export const boardPaths = (id, dir = BOARDS) => ({
@@ -171,6 +173,9 @@ export function openBoard(id, { title = null, dir = BOARDS, onRequest, onExterna
     } catch {}
     checkRequest()
   })
+  // File events can be missed, so a waiting request is also looked for every
+  // two seconds.
+  const poll = setInterval(() => checkRequest(), POLL_MS)
 
   return {
     paths: p,
@@ -183,6 +188,7 @@ export function openBoard(id, { title = null, dir = BOARDS, onRequest, onExterna
     },
     close() {
       closed = true
+      clearInterval(poll)
       watcher?.close()
       clearTimeout(timer)
     },
