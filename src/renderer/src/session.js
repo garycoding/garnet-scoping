@@ -58,7 +58,29 @@ const PANEL_NAMES = { plan: 'Plan', now: 'Now', trail: 'Trail', memory: 'Memory'
 const openMark = (key) => marks.find((m) => m.key === key && m.status === 'open')
 const answeredMark = (key) => marks.findLast((m) => m.key === key && m.status === 'answered')
 
+// ---- Hold (R2.8) ----
+// The person asks the agent to stop after its current step; the agent
+// confirms it has stopped; the person releases it with the same button.
+let hold = 'off'
+function showHold(state) {
+  hold = state?.hold ?? 'off'
+  const b = $('hold')
+  b.className = `hold ${hold}`
+  b.setAttribute('aria-pressed', String(hold !== 'off'))
+  b.textContent = hold === 'requested' ? 'Hold requested' : hold === 'holding' ? 'Holding · Release' : 'Hold'
+  b.title =
+    hold === 'requested'
+      ? 'Waiting for the agent to finish its current step; click to withdraw'
+      : hold === 'holding'
+        ? 'The agent has stopped and is waiting; click to release it'
+        : 'Ask the agent to stop after its current step'
+}
+$('hold').addEventListener('click', () => {
+  window.garnet.board.setState({ hold: hold === 'off' ? 'requested' : 'off' }).then(setMarks)
+})
+
 function setMarks(state) {
+  showHold(state)
   marks = state?.discuss ?? []
   if (view) {
     renderPresent()

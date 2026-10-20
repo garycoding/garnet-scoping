@@ -68,6 +68,8 @@ R2.6. **Session facts:** the model and effort, the working folder and branch, li
 
 R2.7. **Discuss:** the person can mark any row of Plan, Now, Trail or Memory to discuss with the agent: a double-click marks the row (or withdraws an open mark); the right-click menu marks it without a note or with one, or withdraws it. Marks are kept in the session's state file beside its board, shown on their rows and in a "To discuss" strip until withdrawn or dismissed, and stated at the head of the board's rendition. The agent answers in the conversation and records a one-line answer with its request (`"discussed"`), which the Desk shows on the row and in the strip.
 
+R2.8. **Hold:** a button on the window's header lets the person ask the agent to stop after its current step. The request shows as "Hold requested"; the agent finishes the step it is in, starts no other, and confirms with `"holding": true` in a request, after which the button shows "Holding"; the person releases the hold with the same button. Nothing the agent is running is cancelled. The hold is kept in the session's state file and stated at the head of the board's rendition; only the agent can confirm a hold, and only the person can request or release one.
+
 ### R3. The trail
 
 R3.1. Beneath the present state, the session turn by turn, newest at the bottom: each turn shows the person's message (with its images), the agent's actions in order with their descriptions, the files and notes touched, and the agent's closing message or recap.

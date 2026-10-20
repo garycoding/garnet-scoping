@@ -58,6 +58,10 @@ Any row of Plan, Now, Trail or Memory can be marked to discuss: a double-click m
 { "discussed": [{ "id": "<mark id>", "answer": "A flaky watcher; fixed in the next release." }] }
 ```
 
+## Hold, for the agent
+
+The Hold button on a session's window asks the agent to stop after its current step. The state file's `"hold"` reads `"requested"`, and the rendition's Hold line says so. The agent finishes the step it is in, starts no other, and confirms with `{"holding": true}`; the button then shows "Holding". The person releases the hold with the same button, and `"hold"` returns to `"off"`. Nothing running is cancelled.
+
 ## Limits
 
 The transcript is Claude Code's internal format, not a published interface, and a new version of Claude Code may change it. This release was checked against Claude Code 2.1.170 to 2.1.299; the Desk says when a session's version is newer than that, and counts any record it does not recognise, so that a change shows rather than passing silently. Subagents' own transcripts are not shown.
