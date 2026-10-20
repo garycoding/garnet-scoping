@@ -24,5 +24,7 @@ contextBridge.exposeInMainWorld('garnet', {
     onRequest: (fn) => ipcRenderer.on('board:request', (_e, r) => fn(r)),
     onExternal: (fn) => ipcRenderer.on('board:external', (_e, els) => fn(els)),
     onPending: (fn) => ipcRenderer.on('board:pending', () => fn()),
+    setState: (next) => ipcRenderer.invoke('board:set-state', next),
+    onState: (fn) => ipcRenderer.on('board:state', (_e, s) => fn(s)),
   },
 })

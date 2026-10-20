@@ -69,6 +69,7 @@ function openSession(info) {
     onRequest: (r) => send('board:request', r),
     onExternal: (elements) => send('board:external', elements),
     onPending: () => send('board:pending'),
+    onState: (state) => send('board:state', state),
   })
   windows.set(info.id, { win, follower, board, project: info.project, file: info.file })
   load(win, 'session', { id: info.id })
@@ -131,8 +132,9 @@ function registerIpc() {
   })
   ipcMain.handle('board:open', async (e) => {
     const w = entryOf(e)
-    return w ? { paths: w.board.paths, scene: await w.board.load() } : null
+    return w ? { paths: w.board.paths, scene: await w.board.load(), state: await w.board.state() } : null
   })
+  ipcMain.handle('board:set-state', (e, next) => entryOf(e)?.board.setState(next))
   ipcMain.handle('board:save', (e, scene) => entryOf(e)?.board.save(scene))
   ipcMain.handle('board:ready', (e) => entryOf(e)?.board.ready())
   // Shows a folder or file in the Finder (S7); only absolute paths.
