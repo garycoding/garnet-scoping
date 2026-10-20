@@ -88,6 +88,7 @@ $('hold').addEventListener('click', () => {
 function setMarks(state) {
   showHold(state)
   marks = state?.discuss ?? []
+  renderDiscuss()
   if (view) {
     renderPresent()
     renderTrail()
@@ -182,6 +183,7 @@ function markable(node, row, onClick = null, extra = []) {
   // it is a request to discuss, dim when turned off or answered. A click on
   // the flag turns it off or on again.
   node.classList.add('flaggable')
+  node.dataset.key = row.key
   const m = markOf(row.key)
   const cell = el('span', 'flag-cell')
   if (m) {
@@ -488,9 +490,10 @@ function renderMemory() {
 // Which are on is remembered across windows; at least one stays on. The
 // board takes half the window, on the side set in Settings, or all of it
 // when it is the only panel on.
-const PANELS = ['desk', 'trail', 'memory', 'board']
+const PANELS = ['desk', 'trail', 'memory', 'discuss', 'board']
 const PANELS_KEY = 'garnet.panels'
-const DEFAULT_PANELS = { desk: true, trail: false, memory: false, board: true }
+const DEFAULT_PANELS = { desk: true, trail: false, memory: false, discuss: false, board: true }
+const SIDE = ['desk', 'trail', 'memory', 'discuss'] // the panels that share the Desk's half
 
 function loadPanels() {
   try {
@@ -519,8 +522,8 @@ async function mountBoardOnce() {
 }
 
 function layout() {
-  const others = ['desk', 'trail', 'memory'].filter((p) => panels[p])
-  for (const p of ['desk', 'trail', 'memory']) $(`pane-${p}`).hidden = !panels[p]
+  const others = SIDE.filter((p) => panels[p])
+  for (const p of SIDE) $(`pane-${p}`).hidden = !panels[p]
   $('desk').hidden = !others.length
   $('board').hidden = !panels.board
   const stage = $('stage')
@@ -534,15 +537,134 @@ function layout() {
   requestAnimationFrame(() => boardModule?.refreshBoard())
 }
 
-for (const p of PANELS) {
-  $(`tog-${p}`).addEventListener('click', () => {
-    const next = { ...panels, [p]: !panels[p] }
-    if (!PANELS.some((q) => next[q])) return
-    panels = next
-    try {
-      localStorage.setItem(PANELS_KEY, JSON.stringify(panels))
-    } catch {}
-    layout()
+function setPanels(next) {
+  if (!PANELS.some((q) => next[q])) return
+  panels = next
+  try {
+    localStorage.setItem(PANELS_KEY, JSON.stringify(panels))
+  } catch {}
+  layout()
+}
+for (const p of PANELS) $(`tog-${p}`).addEventListener('click', () => setPanels({ ...panels, [p]: !panels[p] }))
+
+// ---- the requests to discuss: a list, and the jump to each item ----
+// The same list is shown in the Discuss panel and in the drop-down of the
+// header's flag button. Choosing an entry shows its item in its own panel
+// (turned on, a Trail turn opened, as needed), scrolled into view, with a
+// highlight that fades over two seconds.
+const WHERE = { plan: 'Plan', now: 'Now', trail: 'Trail', memory: 'Memory', foryou: 'For you' }
+
+function discussEntries() {
+  const open = marks.filter((m) => m.status === 'open').reverse()
+  const rest = marks.filter((m) => m.status !== 'open').reverse()
+  return [...open, ...rest]
+}
+
+function discussItem(m, after) {
+  const item = el('div', `discuss-item ${m.status}`)
+  const flag = el('button', `flag ${m.status === 'open' ? 'on' : 'off'}`)
+  flag.type = 'button'
+  flag.innerHTML = FLAG_SVG
+  flag.title = m.status === 'open' ? 'Click to turn this request off' : 'Click to ask again'
+  flag.addEventListener('click', (e) => {
+    e.stopPropagation()
+    toggleFlag(m.id)
+  })
+  const body = el('div', 'discuss-body')
+  body.append(el('div', 'discuss-what', m.text))
+  const meta = [WHERE[m.panel] ?? m.panel, m.at ? ago(m.at) : null].filter(Boolean).join(' · ')
+  body.append(el('div', 'discuss-meta', meta))
+  if (m.note) body.append(el('div', 'discuss-note', `“${m.note}”`))
+  if (m.answer) body.append(el('div', 'discuss-ans', `Answered: ${m.answer}`))
+  item.append(flag, body)
+  item.title = 'Show it where it is'
+  item.addEventListener('click', () => {
+    after?.()
+    jumpTo(m)
+  })
+  return item
+}
+
+function renderDiscuss() {
+  const entries = discussEntries()
+  const openCount = marks.filter((m) => m.status === 'open').length
+  const btn = $('discuss-btn')
+  btn.hidden = !marks.length
+  btn.innerHTML = `${FLAG_SVG}<span>${openCount}</span>`
+  btn.classList.toggle('lit', openCount > 0)
+  btn.title = openCount ? `${openCount} request${openCount === 1 ? '' : 's'} to discuss` : 'No open requests to discuss'
+  const list = $('discuss-list')
+  list.replaceChildren(...(entries.length ? entries.map((m) => discussItem(m)) : [el('p', 'muted', 'Nothing marked to discuss in this session.')]))
+  const drop = $('discuss-drop')
+  if (!drop.hidden) fillDrop()
+}
+
+function fillDrop() {
+  const drop = $('discuss-drop')
+  drop.replaceChildren(...discussEntries().map((m) => discussItem(m, () => (drop.hidden = true))))
+}
+$('discuss-btn').addEventListener('click', (e) => {
+  e.stopPropagation()
+  const drop = $('discuss-drop')
+  if (!drop.hidden) return (drop.hidden = true)
+  fillDrop()
+  const r = $('discuss-btn').getBoundingClientRect()
+  drop.style.top = `${r.bottom + 6}px`
+  drop.style.right = `${Math.max(8, window.innerWidth - r.right)}px`
+  drop.hidden = false
+})
+window.addEventListener('mousedown', (e) => {
+  const drop = $('discuss-drop')
+  if (!drop.hidden && !drop.contains(e.target) && e.target !== $('discuss-btn') && !$('discuss-btn').contains(e.target)) drop.hidden = true
+})
+window.addEventListener('keydown', (e) => e.key === 'Escape' && ($('discuss-drop').hidden = true))
+
+// Shows a marked item where it is.
+function jumpTo(m) {
+  const key = m.key
+  const want = { ...panels }
+  let container = null
+  if (m.panel === 'plan') {
+    want.desk = true
+    container = 'plan'
+  } else if (m.panel === 'memory') {
+    want.memory = true
+    container = 'memory'
+  } else if (m.panel === 'foryou') {
+    want.desk = true
+    container = 'for-you'
+  } else if (m.panel === 'now' && document.querySelector('#now') && [...$('now').querySelectorAll('[data-key]')].some((n) => n.dataset.key === key)) {
+    want.desk = true
+    container = 'now'
+  } else {
+    // An action no longer in Now, or anything of the Trail: its place in the Trail.
+    want.trail = true
+    container = 'trail'
+    const turnOf = () => {
+      if (key.startsWith('turn:')) return Number(key.slice(5))
+      if (key.startsWith('text:')) return Number(key.split(':')[1])
+      if (key.startsWith('action:')) return view.turns.findIndex((t) => t.items.some((it) => it.type === 'action' && it.id === key.slice(7)))
+      return -1
+    }
+    const i = turnOf()
+    if (i >= 0) {
+      open.add(i)
+      closed.delete(i)
+      trailShown = Math.max(trailShown, view.turns.length - i)
+    }
+  }
+  if (SIDE.some((p) => want[p] !== panels[p])) setPanels(want)
+  if (container === 'trail') renderTrail()
+  requestAnimationFrame(() => {
+    const node = [...$(container).querySelectorAll('[data-key]')].find((n) => n.dataset.key === key)
+    if (!node) {
+      if (m.panel === 'foryou') previewFile(key.slice(5), { panel: 'foryou', key, text: m.text })
+      return
+    }
+    node.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    node.classList.remove('jumped')
+    void node.offsetWidth
+    node.classList.add('jumped')
   })
 }
 window.garnet.settings.get().then((s) => {

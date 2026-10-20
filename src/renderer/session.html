@@ -14,8 +14,9 @@
         <h1 id="title">Session</h1>
         <div id="facts" class="facts"></div>
       </div>
+      <button id="discuss-btn" class="discuss-btn" type="button" hidden title="Your requests to discuss"></button>
       <button id="hold" class="hold" type="button" aria-pressed="false" title="Ask the agent to stop after its current step">Hold</button>
-      <nav class="tabs" aria-label="Panels"><button id="tog-desk" type="button" aria-pressed="false">Desk</button><button id="tog-trail" type="button" aria-pressed="false">Trail</button><button id="tog-memory" type="button" aria-pressed="false">Memory</button><button id="tog-board" type="button" aria-pressed="false">Board</button></nav>
+      <nav class="tabs" aria-label="Panels"><button id="tog-desk" type="button" aria-pressed="false">Desk</button><button id="tog-trail" type="button" aria-pressed="false">Trail</button><button id="tog-memory" type="button" aria-pressed="false">Memory</button><button id="tog-discuss" type="button" aria-pressed="false">Discuss</button><button id="tog-board" type="button" aria-pressed="false">Board</button></nav>
     </header>
     <div id="drift" class="drift" hidden></div>
     <div id="stage" class="stage board-right">
@@ -36,10 +37,15 @@
         <h2>Memory</h2>
         <div id="memory"></div>
       </section>
+      <section id="pane-discuss" class="discuss-col">
+        <h2>Discuss</h2>
+        <div id="discuss-list"></div>
+      </section>
     </main>
     <main id="board" class="board" hidden></main>
     </div>
     <div id="ctx-menu" class="ctx-menu" hidden></div>
+    <div id="discuss-drop" class="discuss-drop" hidden></div>
     <div id="viewer" class="viewer" hidden><div class="viewer-box"><header><h3 id="viewer-title"></h3><button id="viewer-close" type="button">Close</button></header><div id="viewer-body"></div></div></div>
     <script type="module" src="./src/session.js"></script>
   </body>
