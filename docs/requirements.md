@@ -10,7 +10,7 @@ This document states what the app must do, not how. It separates what has been d
 
 - **Session:** one Claude Code conversation, from any of its front ends (the desktop app, the command line).
 - **Transcript:** the file in which Claude Code records a session as it runs, one per session, in the user's Claude configuration directory, grouped by the folder the session was started in (its project). Its format is Claude Code's own and is not documented; it may change with any release.
-- **Desk:** the window that shows one session.
+- **Desk:** the panel of a session's window that shows the session's present state (R2); before D9 it named the whole window.
 - **Memory store:** the folder of Markdown notes Claude Code keeps per project, each note carrying a name, a description and a type in its frontmatter, which the agent reads and writes to remember things between sessions.
 
 ## Decided
@@ -22,9 +22,10 @@ These were ruled before this document was written.
 - D3. A Desk has a Memory pane (R4).
 - D4. The first version runs on macOS only.
 - D5. The repository is public, under the garycoding account, and the code is licensed under AGPL-3.0-or-later.
-- D6. The app is named garnet-scoping; "Desk" names its window, not the app.
+- D6. The app is named garnet-scoping; "Desk" names a part of its window (since D9, one of the window's panels), not the app.
 - D7. Changes to the details are expected to follow from use: the first version is the starting point, not a fixed design.
 - D8. Each session has one window, holding its Desk and its board (R7); the board is a shared whiteboard of shapes with text, lines and arrows.
+- D9. The window's four panels, Desk (the present state), Trail, Memory and Board, are each turned on and off. When the board is shown beside other panels it takes half the window, on the side (left, right, top or bottom) set in Settings; the other panels share the remaining half.
 
 ## Settled under the go-ahead
 
@@ -112,6 +113,8 @@ R7.3. Beside the board file the app keeps a plain-text rendition, current with e
 R7.4. The agent changes the board by writing a short request file beside it, listing shapes to add (kind, text, position, and connections by shape id) and shapes to remove or relabel. The app expands the request into full Excalidraw elements, merges it into the board, and removes the request file; the agent never writes Excalidraw's full format.
 
 R7.5. The person's edits and the agent's requests merge by element, so that neither overwrites the other: a change to the board file from outside the window is merged element by element, the newer version of each element winning, and the board file is always written whole and atomically.
+
+R7.6. The board carries two signals from the person to the agent. **Editing** is a checkbox that any change the person makes to the board checks, and that the person unchecks when done, so the agent knows whether the board is still being changed. **Review** is a toggle the person turns on to ask the agent to read the board now, which also unchecks Editing; the agent turns it off, with its request, once it has read the board. Both are off by default, kept on disk beside the board, and stated at the head of the rendition.
 
 ## Proposed and settled
 

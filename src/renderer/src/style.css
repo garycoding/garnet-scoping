@@ -145,6 +145,10 @@ input[type='search'] {
 .facts a {
   color: var(--accent-soft);
 }
+.tabs {
+  display: flex;
+  gap: 4px;
+}
 .tabs button.active {
   border-color: var(--accent);
   color: var(--accent-soft);
@@ -155,22 +159,70 @@ input[type='search'] {
   color: var(--warn);
   font-size: 12px;
 }
+/* The stage holds the Desk's panels and the board. With both shown, the
+   board takes half, on the side set in Settings. */
+.stage {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+.stage.board-left,
+.stage.board-right {
+  flex-direction: row;
+}
+.stage.board-top,
+.stage.board-bottom {
+  flex-direction: column;
+}
+.stage.board-left > .board,
+.stage.board-top > .board {
+  order: -1;
+}
+.stage.split > .desk,
+.stage.split > .board {
+  flex: 0 0 50%;
+  min-width: 0;
+}
+.stage.split.board-right > .desk {
+  border-right: 1px solid var(--line);
+}
+.stage.split.board-left > .desk {
+  border-left: 1px solid var(--line);
+}
+.stage.split.board-bottom > .desk {
+  border-bottom: 1px solid var(--line);
+}
+.stage.split.board-top > .desk {
+  border-top: 1px solid var(--line);
+}
 .desk {
   flex: 1;
   min-height: 0;
-  display: grid;
-  grid-template-columns: minmax(300px, 30%) 1fr minmax(240px, 22%);
+  min-width: 0;
+  display: flex;
+}
+.desk > section[hidden] {
+  display: none;
+}
+.desk > .present {
+  flex: 3 1 0;
+}
+.desk > .trail-col {
+  flex: 5 1 0;
+}
+.desk > .memory-col {
+  flex: 2.2 1 0;
 }
 .desk[hidden] {
   display: none;
 }
 .desk > section {
+  min-width: 0;
   overflow: auto;
   padding: 12px 14px;
-  border-right: 1px solid var(--line);
 }
-.desk > section:last-child {
-  border-right: 0;
+.desk > section:not([hidden]) ~ section:not([hidden]) {
+  border-left: 1px solid var(--line);
 }
 .card {
   background: var(--panel);
@@ -241,7 +293,8 @@ input[type='search'] {
   margin-right: 6px;
 }
 .speech {
-  white-space: pre-wrap;
+  max-height: 60vh;
+  overflow-y: auto;
   word-break: break-word;
 }
 .awaiting {
@@ -402,6 +455,7 @@ input[type='search'] {
 .board {
   flex: 1;
   min-height: 0;
+  min-width: 0;
   position: relative;
 }
 .board[hidden] {
@@ -415,6 +469,33 @@ input[type='search'] {
 .board {
   display: flex;
   flex-direction: column;
+}
+.board-signals {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+  padding-right: 10px;
+  border-right: 1px solid var(--line);
+}
+.board-editing {
+  white-space: nowrap;
+  cursor: pointer;
+}
+.board-editing input {
+  accent-color: var(--accent);
+  vertical-align: -2px;
+}
+/* Review lit: the person is waiting for the agent to read the board. */
+.board-review.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  box-shadow: 0 0 8px var(--accent);
+}
+.board-head button {
+  flex: none;
+  white-space: nowrap;
 }
 .board-head {
   display: flex;
@@ -453,4 +534,19 @@ input[type='search'] {
   flex: 1;
   min-height: 0;
   position: relative;
+}
+
+/* ---- the Settings window ---- */
+.settings-page {
+  padding: 16px 20px;
+}
+.settings-page p {
+  margin: 0 0 12px;
+}
+.sides {
+  display: flex;
+  gap: 18px;
+}
+.sides label {
+  cursor: pointer;
 }

@@ -100,7 +100,9 @@ function renderPresent() {
   const lw = view.lastWord
   const box = $('last-word')
   box.replaceChildren()
-  if (lw?.text) box.append(el('div', 'speech', lw.text.length > 1200 ? lw.text.slice(0, 1200) + '…' : lw.text))
+  // The agent writes Markdown; it is shown rendered, whole, in a box that
+  // scrolls when it is long.
+  if (lw?.text) box.append(Object.assign(markdown(lw.text), { className: 'speech markdown' }))
   if (lw?.recap) box.append(el('div', 'recap', lw.recap))
   if (lw?.ask) box.append(el('div', 'awaiting', `Asked: ${lw.ask}`))
   if (lw?.agentSpokeLast) box.append(el('div', 'awaiting', `The agent has spoken last${lw.at ? ` (${ago(lw.at)})` : ''}: your turn.`))
@@ -251,30 +253,80 @@ function renderMemory() {
   }
 }
 
-// ---- tabs ----
-function showTab(name) {
-  $('desk').hidden = name !== 'desk'
-  $('board').hidden = name !== 'board'
-  $('tab-desk').classList.toggle('active', name === 'desk')
-  $('tab-board').classList.toggle('active', name === 'board')
+// ---- the panels ----
+// Four panels the person turns on and off: Desk, Trail, Memory and Board.
+// Which are on is remembered across windows; at least one stays on. The
+// board takes half the window, on the side set in Settings, or all of it
+// when it is the only panel on.
+const PANELS = ['desk', 'trail', 'memory', 'board']
+const PANELS_KEY = 'garnet.panels'
+const DEFAULT_PANELS = { desk: true, trail: false, memory: false, board: true }
+
+function loadPanels() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(PANELS_KEY))
+    const out = { ...DEFAULT_PANELS }
+    for (const p of PANELS) if (typeof saved?.[p] === 'boolean') out[p] = saved[p]
+    return PANELS.some((p) => out[p]) ? out : { ...DEFAULT_PANELS }
+  } catch {
+    return { ...DEFAULT_PANELS }
+  }
 }
-// The board is loaded when its tab is first shown; Excalidraw finds its
-// bundled fonts beside this page (no request leaves the app).
+let panels = loadPanels()
+let boardSide = 'right'
+
+// The board is loaded when it is first shown; Excalidraw finds its bundled
+// fonts beside this page (no request leaves the app).
 let boardMounted = false
-async function showBoard() {
-  showTab('board')
-  $('tab-board').classList.remove('pending')
+let boardModule = null
+async function mountBoardOnce() {
   if (boardMounted) return
   boardMounted = true
+  $('tog-board').classList.remove('pending')
   window.EXCALIDRAW_ASSET_PATH = new URL('./', location.href).href
-  const { mountBoard } = await import('./board.js')
-  await mountBoard($('board'))
+  boardModule = await import('./board.js')
+  await boardModule.mountBoard($('board'))
 }
-$('tab-desk').addEventListener('click', () => showTab('desk'))
-$('tab-board').addEventListener('click', showBoard)
-// A request from the agent waits until the board is open: mark the tab.
+
+function layout() {
+  const others = ['desk', 'trail', 'memory'].filter((p) => panels[p])
+  for (const p of ['desk', 'trail', 'memory']) $(`pane-${p}`).hidden = !panels[p]
+  $('desk').hidden = !others.length
+  $('board').hidden = !panels.board
+  const stage = $('stage')
+  stage.className = `stage board-${boardSide}${panels.board && others.length ? ' split' : ''}`
+  for (const p of PANELS) {
+    $(`tog-${p}`).classList.toggle('active', panels[p])
+    $(`tog-${p}`).setAttribute('aria-pressed', String(panels[p]))
+  }
+  if (panels.board) mountBoardOnce()
+  // The editor measures its container; it is told when that changes.
+  requestAnimationFrame(() => boardModule?.refreshBoard())
+}
+
+for (const p of PANELS) {
+  $(`tog-${p}`).addEventListener('click', () => {
+    const next = { ...panels, [p]: !panels[p] }
+    if (!PANELS.some((q) => next[q])) return
+    panels = next
+    try {
+      localStorage.setItem(PANELS_KEY, JSON.stringify(panels))
+    } catch {}
+    layout()
+  })
+}
+window.garnet.settings.get().then((s) => {
+  boardSide = s.boardSide
+  layout()
+})
+window.garnet.settings.onChanged((s) => {
+  boardSide = s.boardSide
+  layout()
+})
+layout()
+// A request from the agent waits until the board is open: mark its toggle.
 window.garnet.board.onPending(() => {
-  if (!boardMounted) $('tab-board').classList.add('pending')
+  if (!boardMounted) $('tog-board').classList.add('pending')
 })
 
 async function refresh() {

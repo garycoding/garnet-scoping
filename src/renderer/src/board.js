@@ -76,10 +76,36 @@ function scheduleSave() {
   }, SAVE_MS)
 }
 
+// The scene version the person has not changed: set after every change made
+// by the app (an agent's request, an outside edit), so that onChange can tell
+// the person's own edits from the app's.
+let knownVersion = -1
+
 function replaceScene(next) {
   elements = next
+  knownVersion = getSceneVersion(elements)
   if (api) api.updateScene({ elements })
   scheduleSave()
+}
+
+// ---- the person's signals (R7.6) ----
+let boardState = { editing: false, review: false }
+let editingBox = null
+let reviewButton = null
+
+function showState(s) {
+  boardState = s
+  if (editingBox) editingBox.checked = s.editing
+  if (reviewButton) {
+    reviewButton.classList.toggle('active', s.review)
+    reviewButton.setAttribute('aria-pressed', String(s.review))
+    reviewButton.title = s.review ? 'Waiting for the agent to read the board; click to withdraw the request' : 'Ask the agent to read the board now'
+  }
+}
+
+function setState(next) {
+  showState({ ...boardState, ...next })
+  window.garnet.board.setState(next).then(showState, (err) => setStatus(`The board's state could not be saved: ${err.message}`, true))
 }
 
 // The point on a shape's box edge on the line from its centre towards `to`.
@@ -191,6 +217,11 @@ function mergeExternal(incoming) {
   replaceScene(restoreElements(straighten([...out.values()]), null))
 }
 
+// Tells the editor its container has changed size or place.
+export function refreshBoard() {
+  api?.refresh()
+}
+
 export async function mountBoard(container) {
   const info = await window.garnet.board.open()
   // The header: where the agent finds the rendition and writes requests.
@@ -209,7 +240,27 @@ export async function mountBoard(container) {
   })
   statusEl = document.createElement('span')
   statusEl.className = 'board-status'
-  head.append(paths, copy, statusEl)
+  // Editing: checked by any change the person makes, unchecked by them when
+  // done. Review: the person asks the agent to read the board; the agent's
+  // "reviewed" turns it off.
+  const editing = document.createElement('label')
+  editing.className = 'board-editing'
+  editingBox = document.createElement('input')
+  editingBox.type = 'checkbox'
+  editingBox.addEventListener('change', () => setState({ editing: editingBox.checked }))
+  editing.append(editingBox, document.createTextNode(' Editing'))
+  reviewButton = document.createElement('button')
+  reviewButton.type = 'button'
+  reviewButton.className = 'board-review'
+  reviewButton.textContent = 'Review'
+  // Asking for a review ends editing.
+  reviewButton.addEventListener('click', () => setState(boardState.review ? { review: false } : { review: true, editing: false }))
+  const signals = document.createElement('span')
+  signals.className = 'board-signals'
+  signals.append(editing, reviewButton)
+  head.append(signals, paths, copy, statusEl)
+  showState(info.state ?? boardState)
+  window.garnet.board.onState(showState)
   const holder = document.createElement('div')
   holder.className = 'board-canvas'
   container.replaceChildren(head, holder)
@@ -219,6 +270,7 @@ export async function mountBoard(container) {
   // A change of face changes the text's measured size, so it is remeasured.
   if (convert) elements = restoreElements(straighten(toPlain(elements)), null, { refreshDimensions: true })
   savedVersion = convert ? -1 : getSceneVersion(elements)
+  knownVersion = getSceneVersion(elements)
 
   window.garnet.board.onRequest(({ request, error }) => {
     if (error) return setStatus(error, true)
@@ -241,6 +293,12 @@ export async function mountBoard(container) {
       theme: 'dark',
       onChange: (els) => {
         elements = els
+        // A change the app did not make is the person's: they are editing.
+        const v = getSceneVersion(els)
+        if (v !== knownVersion) {
+          knownVersion = v
+          if (!boardState.editing) setState({ editing: true })
+        }
         // Pasted elements may come in another style; they are given the board's.
         if (els.some((e) => !e.isDeleted && offStyle(e))) queueMicrotask(() => replaceScene(restoreElements(straighten(elements), null, { refreshDimensions: true })))
         scheduleSave()

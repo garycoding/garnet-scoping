@@ -16,12 +16,16 @@ import { listMemory } from './transcript/memory.js'
 import { follow } from './follower.js'
 import { openBoard } from './board.js'
 import { openAboutWindow, openLicensesWindow } from './about.js'
+import { loadSettings, saveSettings, clean } from './settings.js'
 
 const CLAUDE = join(homedir(), '.claude')
 const PROJECTS = join(CLAUDE, 'projects')
 const PUSH_MS = 400
 
 let listWindow = null
+let settingsWindow = null
+let settingsFile = null
+let settings = null
 const windows = new Map() // session id -> { win, follower, project }
 
 function pageUrl(page, query = {}) {
@@ -65,10 +69,18 @@ function openSession(info) {
     onRequest: (r) => send('board:request', r),
     onExternal: (elements) => send('board:external', elements),
     onPending: () => send('board:pending'),
+    onState: (state) => send('board:state', state),
   })
   windows.set(info.id, { win, follower, board, project: info.project, file: info.file })
   load(win, 'session', { id: info.id })
-  win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+  // A link in rendered text opens in the system's browser; the window itself
+  // never navigates away from the app's page.
+  const openLink = (url) => /^https?:/i.test(url) && shell.openExternal(url)
+  win.webContents.setWindowOpenHandler(({ url }) => (openLink(url), { action: 'deny' }))
+  win.webContents.on('will-navigate', (e, url) => {
+    e.preventDefault()
+    openLink(url)
+  })
   win.on('closed', () => {
     board.close()
     follower.close()
@@ -84,7 +96,22 @@ function inside(dir, p) {
   return full === dir || full.startsWith(dir + sep) ? full : null
 }
 
+// The Settings window (one at a time).
+function openSettings() {
+  if (settingsWindow && !settingsWindow.isDestroyed()) return settingsWindow.focus()
+  settingsWindow = new BrowserWindow({ width: 420, height: 230, resizable: false, minimizable: false, maximizable: false, fullscreenable: false, title: 'Settings', backgroundColor: '#17181a', webPreferences: webPreferences() })
+  load(settingsWindow, 'settings')
+  settingsWindow.on('closed', () => (settingsWindow = null))
+}
+
 function registerIpc() {
+  ipcMain.handle('settings:get', () => settings)
+  ipcMain.handle('settings:set', async (_e, next) => {
+    settings = clean(next)
+    await saveSettings(settingsFile, settings)
+    for (const w of windows.values()) if (!w.win.isDestroyed()) w.win.webContents.send('settings:changed', settings)
+    return settings
+  })
   ipcMain.handle('sessions:list', () => listSessions(PROJECTS))
   ipcMain.handle('sessions:open', (_e, info) => openSession(info))
   ipcMain.handle('session:view', async (e) => {
@@ -105,8 +132,9 @@ function registerIpc() {
   })
   ipcMain.handle('board:open', async (e) => {
     const w = entryOf(e)
-    return w ? { paths: w.board.paths, scene: await w.board.load() } : null
+    return w ? { paths: w.board.paths, scene: await w.board.load(), state: await w.board.state() } : null
   })
+  ipcMain.handle('board:set-state', (e, next) => entryOf(e)?.board.setState(next))
   ipcMain.handle('board:save', (e, scene) => entryOf(e)?.board.save(scene))
   ipcMain.handle('board:ready', (e) => entryOf(e)?.board.ready())
   // Shows a folder or file in the Finder (S7); only absolute paths.
@@ -143,13 +171,14 @@ function buildMenu() {
   const isMac = process.platform === 'darwin'
   const about = { label: 'About garnet-scoping', click: () => openAboutWindow() }
   const licenses = { label: 'Open Source Licenses…', click: () => openLicensesWindow() }
+  const prefs = { label: 'Settings…', accelerator: 'CmdOrCtrl+,', click: () => openSettings() }
   Menu.setApplicationMenu(
     Menu.buildFromTemplate([
       ...(isMac
         ? [
             {
               role: 'appMenu',
-              submenu: [about, licenses, { type: 'separator' }, { role: 'services' }, { type: 'separator' }, { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' }, { type: 'separator' }, { role: 'quit' }],
+              submenu: [about, licenses, { type: 'separator' }, prefs, { type: 'separator' }, { role: 'services' }, { type: 'separator' }, { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' }, { type: 'separator' }, { role: 'quit' }],
             },
           ]
         : []),
@@ -163,6 +192,8 @@ function buildMenu() {
 }
 
 app.whenReady().then(() => {
+  settingsFile = join(app.getPath('userData'), 'settings.json')
+  settings = loadSettings(settingsFile)
   refuseNetwork()
   registerIpc()
   buildMenu()

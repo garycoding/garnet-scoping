@@ -43,7 +43,12 @@ A request adds, relabels or removes elements; shapes need no position, and conne
 }
 ```
 
-The Board tab carries the rendition's path and a button that copies an instruction naming it, to paste into the session. A request written whilst the board is not open waits, and the Board tab is marked until it is applied.
+The board's header carries the rendition's path and a button that copies an instruction naming it, to paste into the session. A request written whilst the board is not shown waits, and the Board toggle is marked until it is applied.
+
+Two controls in the header carry the person's signals, and the rendition states both in its first lines:
+
+- **Editing** is checked by any change the person makes, and unchecked by the person when done (`Editing: yes` or `no`).
+- **Review** is turned on by the person to ask the agent to read the board now (`Review: requested at …`); turning it on also unchecks Editing. The agent turns it off by including `"reviewed": true` in a request, alone or with changes; a bare `{"reviewed": true}` applies even while the board is not shown.
 
 ## Limits
 
