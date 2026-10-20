@@ -7,7 +7,7 @@ A macOS desktop app that shows what a Claude Code session is doing, for the pers
 It reads each session's transcript, the file Claude Code writes as the session runs, and lists the sessions on the machine, the most recent first. Opening one shows its window:
 
 - **Desk:** the agent's plan and the step it is on, what it is doing now, what it is waiting on, the files it has read and changed, the project's memory notes, its last word and any question it has not had answered, and beneath them the session's trail, turn by turn.
-- **For you:** the files the agent has sent you in the session, newest first, with thumbnails for images; click one to open it.
+- **For you:** the files the agent has sent you in the session, newest first, with thumbnails for images. Click one to preview it in the app; right-click for Discuss and for opening it in its default app.
 - **Board:** an Excalidraw whiteboard for that session. The person drops shapes onto it, writes in them and connects them with lines and arrows; the agent reads the board as text and changes it by writing a request file.
 
 The app only reads what Claude Code writes: it never writes under `~/.claude`, and it makes no network connection. Each window follows its transcript as it grows, so the Desk is current whilst the session runs.
@@ -55,7 +55,7 @@ Two controls in the header carry the person's signals, and the rendition states 
 
 ## Discussing a row, for the agent
 
-Any row of Plan, Now, Trail or Memory can be marked to discuss: a double-click marks it, and the right-click menu marks it with or without a note. Each mark goes into `<id>.state.json` beside the board, under `"discuss"`, with the row's panel, its text, the note, and, for an action, its id in the key (`action:<id>`). The rendition's third line counts the open marks. The agent answers in the conversation, then records a one-line answer, shown on the Desk, with a request:
+Any row of Plan, Now, Trail, Memory or For you can be marked to discuss: the right-click menu marks it with or without a note, and a double-click marks it too. A marked row shows a flag at its left, lit while it is a request; clicking the flag turns the request off or on again. The header's flag button counts the open requests and lists them all, as does the Discuss panel; choosing one shows the item where it is, highlighted for two seconds. Each mark goes into `<id>.state.json` beside the board, under `"discuss"`, with the row's panel, its text, the note, its status (`open`, `off` or `answered`), and, for an action, its id in the key (`action:<id>`). The rendition's third line counts the open marks. The agent answers in the conversation, then records a one-line answer, shown on the Desk, with a request:
 
 ```json
 { "discussed": [{ "id": "<mark id>", "answer": "A flaky watcher; fixed in the next release." }] }

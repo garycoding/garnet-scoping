@@ -39,7 +39,8 @@ let view = null
 let memory = null
 
 // ---- the viewer: a note, or an action's command and output ----
-function showViewer(title, body) {
+function showViewer(title, body, { wide = false } = {}) {
+  $('viewer').querySelector('.viewer-box').classList.toggle('wide', wide)
   $('viewer-title').textContent = title
   $('viewer-body').replaceChildren(body)
   $('viewer').hidden = false
@@ -54,9 +55,14 @@ window.addEventListener('keydown', (e) => e.key === 'Escape' && ($('viewer').hid
 // menu marks it with or without a note. Marks live in the session's state
 // file, where the agent's watcher sees them; the agent answers them there.
 let marks = []
-const PANEL_NAMES = { plan: 'Plan', now: 'Now', trail: 'Trail', memory: 'Memory' }
+const FLAG_SVG = '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3.5 1.5v13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M4.2 2.2h8.3l-2 3.1 2 3.1H4.2z" fill="currentColor"/></svg>'
 const openMark = (key) => marks.find((m) => m.key === key && m.status === 'open')
-const answeredMark = (key) => marks.findLast((m) => m.key === key && m.status === 'answered')
+// A row's mark: its open one if any, else its latest (turned off or answered).
+const markOf = (key) => openMark(key) ?? marks.findLast((m) => m.key === key)
+const answeredMark = (key) => marks.findLast((m) => m.key === key && m.answer)
+function toggleFlag(id) {
+  return window.garnet.discuss({ op: 'toggle', id }).then(setMarks)
+}
 
 // ---- Hold (R2.8) ----
 // The person asks the agent to stop after its current step; the agent
@@ -82,12 +88,12 @@ $('hold').addEventListener('click', () => {
 function setMarks(state) {
   showHold(state)
   marks = state?.discuss ?? []
+  renderDiscuss()
   if (view) {
     renderPresent()
     renderTrail()
     renderMemory()
   }
-  renderStrip()
 }
 
 function mark(row, note = null) {
@@ -125,7 +131,7 @@ const menu = $('ctx-menu')
 function closeMenu() {
   menu.hidden = true
 }
-function showMenu(e, row) {
+function showMenu(e, row, extra = []) {
   e.preventDefault()
   const items = [
     ['Discuss', () => mark(row)],
@@ -133,6 +139,7 @@ function showMenu(e, row) {
   ]
   const m = openMark(row.key)
   if (m) items.push(['Withdraw the discussion', () => withdraw(m.id)])
+  items.push(...extra)
   menu.replaceChildren(
     ...items.map(([label, act]) => {
       const b = el('button', null, label)
@@ -156,7 +163,7 @@ window.addEventListener('blur', closeMenu)
 
 // Makes a row markable. Its own click, if any, waits a moment so that a
 // double-click does not also open it.
-function markable(node, row, onClick = null) {
+function markable(node, row, onClick = null, extra = []) {
   let timer = null
   if (onClick) {
     node.addEventListener('click', (e) => {
@@ -171,33 +178,35 @@ function markable(node, row, onClick = null) {
     window.getSelection()?.removeAllRanges()
     toggleMark(row)
   })
-  node.addEventListener('contextmenu', (e) => showMenu(e, row))
-  if (openMark(row.key)) node.classList.add('discuss-open')
+  node.addEventListener('contextmenu', (e) => showMenu(e, row, extra))
+  // The flag column: empty until the row is marked; then a flag, lit while
+  // it is a request to discuss, dim when turned off or answered. A click on
+  // the flag turns it off or on again.
+  node.classList.add('flaggable')
+  node.dataset.key = row.key
+  const m = markOf(row.key)
+  const cell = el('span', 'flag-cell')
+  if (m) {
+    const flag = el('button', `flag ${m.status === 'open' ? 'on' : 'off'}`)
+    flag.type = 'button'
+    flag.innerHTML = FLAG_SVG
+    flag.title =
+      m.status === 'open'
+        ? `A request to discuss${m.note ? `: ${m.note}` : ''}. Click to turn it off.`
+        : `${m.status === 'answered' ? 'Answered' : 'Turned off'}${m.note ? ` (${m.note})` : ''}. Click to ask again.`
+    flag.addEventListener('click', (e) => {
+      e.stopPropagation()
+      toggleFlag(m.id)
+    })
+    flag.addEventListener('dblclick', (e) => e.stopPropagation())
+    cell.append(flag)
+  }
+  node.prepend(cell)
   const done = answeredMark(row.key)
   if (done?.answer) node.append(el('div', 'discuss-answer', `Answered: ${done.answer}`))
   return node
 }
 
-function renderStrip() {
-  const strip = $('discuss-strip')
-  const shown = marks.filter((m) => m.status === 'open' || m.answer)
-  strip.hidden = !shown.length
-  strip.replaceChildren(
-    el('span', 'strip-title', 'To discuss'),
-    ...shown.map((m) => {
-      const item = el('span', `strip-item ${m.status}`)
-      item.append(el('span', 'where', PANEL_NAMES[m.panel] ?? m.panel), el('span', 'what', m.text))
-      if (m.note) item.append(el('span', 'note', `“${m.note}”`))
-      if (m.status === 'answered') item.append(el('span', 'answer', m.answer))
-      item.title = [m.text, m.note && `Note: ${m.note}`, m.answer && `Answer: ${m.answer}`].filter(Boolean).join('\n')
-      const x = el('button', 'x', m.status === 'open' ? 'Withdraw' : 'Dismiss')
-      x.type = 'button'
-      x.addEventListener('click', () => withdraw(m.id))
-      item.append(x)
-      return item
-    }),
-  )
-}
 
 async function showDetail(action) {
   const d = await window.garnet.detail(action.id)
@@ -284,7 +293,7 @@ function renderForYou() {
       for (const f of d.files) {
         const tile = el('button', `delivery-file${f.exists ? '' : ' gone'}`)
         tile.type = 'button'
-        tile.title = f.exists ? `${f.path}\nClick to open; right-click to show in the Finder.` : `${f.path}\nNo longer on disk.`
+        tile.title = f.exists ? `${f.path}\nClick to preview; right-click for more.` : `${f.path}\nNo longer on disk.`
         if (f.exists && IMAGE.test(f.path)) {
           const img = el('img')
           img.src = `file://${encodeURI(f.path)}`
@@ -292,19 +301,53 @@ function renderForYou() {
           tile.append(img)
         }
         tile.append(el('span', 'name', basename(f.path)))
-        if (f.exists) {
-          tile.addEventListener('click', () => window.garnet.openFile(f.path))
-          tile.addEventListener('contextmenu', (e) => {
-            e.preventDefault()
-            window.garnet.showInFinder(f.path)
-          })
-        }
-        files.append(tile)
+        const row = { panel: 'foryou', key: `file:${f.path}`, text: `${basename(f.path)}${d.caption ? ` (${d.caption})` : ''}` }
+        const extra = f.exists
+          ? [
+              ['Open in its default app', () => window.garnet.openFile(f.path)],
+              ['Show in the Finder', () => window.garnet.showInFinder(f.path)],
+            ]
+          : []
+        files.append(markable(tile, row, f.exists ? () => previewFile(f.path, row) : null, extra))
       }
       item.append(files)
       return item
     }),
   )
+}
+
+// The in-app preview of a delivered file, in the viewer overlay.
+async function previewFile(path, row) {
+  const name = basename(path)
+  const body = el('div', 'preview')
+  if (IMAGE.test(path)) {
+    const img = el('img', 'preview-image')
+    img.src = `file://${encodeURI(path)}`
+    img.alt = name
+    body.append(img)
+  } else if (/\.pdf$/i.test(path)) {
+    const frame = el('iframe', 'preview-pdf')
+    frame.src = `file://${encodeURI(path)}`
+    body.append(frame)
+  } else {
+    const r = await window.garnet.readFile(path)
+    if (r?.kind === 'text') body.append(/\.(md|markdown)$/i.test(path) ? markdown(r.text) : Object.assign(el('pre', 'preview-text'), { textContent: r.text }))
+    else if (r?.kind === 'gone') body.append(el('p', 'muted', 'This file is no longer on disk.'))
+    else body.append(el('p', 'muted', `No preview for this kind of file${r?.size != null ? ` (${Math.ceil(r.size / 1024)} KB)` : ''}.`))
+  }
+  const bar = el('div', 'preview-bar')
+  for (const [label, act] of [
+    ['Open in its default app', () => window.garnet.openFile(path)],
+    ['Show in the Finder', () => window.garnet.showInFinder(path)],
+    ['Discuss…', () => askNote(row)],
+  ]) {
+    const b = el('button', null, label)
+    b.type = 'button'
+    b.addEventListener('click', act)
+    bar.append(b)
+  }
+  showViewer(name, Object.assign(el('div'), { className: 'preview-wrap' }), { wide: true })
+  $('viewer-body').firstChild.append(body, bar)
 }
 
 // ---- the trail (R3) ----
@@ -447,9 +490,10 @@ function renderMemory() {
 // Which are on is remembered across windows; at least one stays on. The
 // board takes half the window, on the side set in Settings, or all of it
 // when it is the only panel on.
-const PANELS = ['desk', 'trail', 'memory', 'board']
+const PANELS = ['desk', 'trail', 'memory', 'discuss', 'board']
 const PANELS_KEY = 'garnet.panels'
-const DEFAULT_PANELS = { desk: true, trail: false, memory: false, board: true }
+const DEFAULT_PANELS = { desk: true, trail: false, memory: false, discuss: false, board: true }
+const SIDE = ['desk', 'trail', 'memory', 'discuss'] // the panels that share the Desk's half
 
 function loadPanels() {
   try {
@@ -478,8 +522,8 @@ async function mountBoardOnce() {
 }
 
 function layout() {
-  const others = ['desk', 'trail', 'memory'].filter((p) => panels[p])
-  for (const p of ['desk', 'trail', 'memory']) $(`pane-${p}`).hidden = !panels[p]
+  const others = SIDE.filter((p) => panels[p])
+  for (const p of SIDE) $(`pane-${p}`).hidden = !panels[p]
   $('desk').hidden = !others.length
   $('board').hidden = !panels.board
   const stage = $('stage')
@@ -493,15 +537,134 @@ function layout() {
   requestAnimationFrame(() => boardModule?.refreshBoard())
 }
 
-for (const p of PANELS) {
-  $(`tog-${p}`).addEventListener('click', () => {
-    const next = { ...panels, [p]: !panels[p] }
-    if (!PANELS.some((q) => next[q])) return
-    panels = next
-    try {
-      localStorage.setItem(PANELS_KEY, JSON.stringify(panels))
-    } catch {}
-    layout()
+function setPanels(next) {
+  if (!PANELS.some((q) => next[q])) return
+  panels = next
+  try {
+    localStorage.setItem(PANELS_KEY, JSON.stringify(panels))
+  } catch {}
+  layout()
+}
+for (const p of PANELS) $(`tog-${p}`).addEventListener('click', () => setPanels({ ...panels, [p]: !panels[p] }))
+
+// ---- the requests to discuss: a list, and the jump to each item ----
+// The same list is shown in the Discuss panel and in the drop-down of the
+// header's flag button. Choosing an entry shows its item in its own panel
+// (turned on, a Trail turn opened, as needed), scrolled into view, with a
+// highlight that fades over two seconds.
+const WHERE = { plan: 'Plan', now: 'Now', trail: 'Trail', memory: 'Memory', foryou: 'For you' }
+
+function discussEntries() {
+  const open = marks.filter((m) => m.status === 'open').reverse()
+  const rest = marks.filter((m) => m.status !== 'open').reverse()
+  return [...open, ...rest]
+}
+
+function discussItem(m, after) {
+  const item = el('div', `discuss-item ${m.status}`)
+  const flag = el('button', `flag ${m.status === 'open' ? 'on' : 'off'}`)
+  flag.type = 'button'
+  flag.innerHTML = FLAG_SVG
+  flag.title = m.status === 'open' ? 'Click to turn this request off' : 'Click to ask again'
+  flag.addEventListener('click', (e) => {
+    e.stopPropagation()
+    toggleFlag(m.id)
+  })
+  const body = el('div', 'discuss-body')
+  body.append(el('div', 'discuss-what', m.text))
+  const meta = [WHERE[m.panel] ?? m.panel, m.at ? ago(m.at) : null].filter(Boolean).join(' · ')
+  body.append(el('div', 'discuss-meta', meta))
+  if (m.note) body.append(el('div', 'discuss-note', `“${m.note}”`))
+  if (m.answer) body.append(el('div', 'discuss-ans', `Answered: ${m.answer}`))
+  item.append(flag, body)
+  item.title = 'Show it where it is'
+  item.addEventListener('click', () => {
+    after?.()
+    jumpTo(m)
+  })
+  return item
+}
+
+function renderDiscuss() {
+  const entries = discussEntries()
+  const openCount = marks.filter((m) => m.status === 'open').length
+  const btn = $('discuss-btn')
+  btn.hidden = !marks.length
+  btn.innerHTML = `${FLAG_SVG}<span>${openCount}</span>`
+  btn.classList.toggle('lit', openCount > 0)
+  btn.title = openCount ? `${openCount} request${openCount === 1 ? '' : 's'} to discuss` : 'No open requests to discuss'
+  const list = $('discuss-list')
+  list.replaceChildren(...(entries.length ? entries.map((m) => discussItem(m)) : [el('p', 'muted', 'Nothing marked to discuss in this session.')]))
+  const drop = $('discuss-drop')
+  if (!drop.hidden) fillDrop()
+}
+
+function fillDrop() {
+  const drop = $('discuss-drop')
+  drop.replaceChildren(...discussEntries().map((m) => discussItem(m, () => (drop.hidden = true))))
+}
+$('discuss-btn').addEventListener('click', (e) => {
+  e.stopPropagation()
+  const drop = $('discuss-drop')
+  if (!drop.hidden) return (drop.hidden = true)
+  fillDrop()
+  const r = $('discuss-btn').getBoundingClientRect()
+  drop.style.top = `${r.bottom + 6}px`
+  drop.style.right = `${Math.max(8, window.innerWidth - r.right)}px`
+  drop.hidden = false
+})
+window.addEventListener('mousedown', (e) => {
+  const drop = $('discuss-drop')
+  if (!drop.hidden && !drop.contains(e.target) && e.target !== $('discuss-btn') && !$('discuss-btn').contains(e.target)) drop.hidden = true
+})
+window.addEventListener('keydown', (e) => e.key === 'Escape' && ($('discuss-drop').hidden = true))
+
+// Shows a marked item where it is.
+function jumpTo(m) {
+  const key = m.key
+  const want = { ...panels }
+  let container = null
+  if (m.panel === 'plan') {
+    want.desk = true
+    container = 'plan'
+  } else if (m.panel === 'memory') {
+    want.memory = true
+    container = 'memory'
+  } else if (m.panel === 'foryou') {
+    want.desk = true
+    container = 'for-you'
+  } else if (m.panel === 'now' && document.querySelector('#now') && [...$('now').querySelectorAll('[data-key]')].some((n) => n.dataset.key === key)) {
+    want.desk = true
+    container = 'now'
+  } else {
+    // An action no longer in Now, or anything of the Trail: its place in the Trail.
+    want.trail = true
+    container = 'trail'
+    const turnOf = () => {
+      if (key.startsWith('turn:')) return Number(key.slice(5))
+      if (key.startsWith('text:')) return Number(key.split(':')[1])
+      if (key.startsWith('action:')) return view.turns.findIndex((t) => t.items.some((it) => it.type === 'action' && it.id === key.slice(7)))
+      return -1
+    }
+    const i = turnOf()
+    if (i >= 0) {
+      open.add(i)
+      closed.delete(i)
+      trailShown = Math.max(trailShown, view.turns.length - i)
+    }
+  }
+  if (SIDE.some((p) => want[p] !== panels[p])) setPanels(want)
+  if (container === 'trail') renderTrail()
+  requestAnimationFrame(() => {
+    const node = [...$(container).querySelectorAll('[data-key]')].find((n) => n.dataset.key === key)
+    if (!node) {
+      if (m.panel === 'foryou') previewFile(key.slice(5), { panel: 'foryou', key, text: m.text })
+      return
+    }
+    node.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    node.classList.remove('jumped')
+    void node.offsetWidth
+    node.classList.add('jumped')
   })
 }
 window.garnet.settings.get().then((s) => {

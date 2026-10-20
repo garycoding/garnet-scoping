@@ -53,11 +53,14 @@ export async function readImage(path) {
 // agent confirms it has stopped ("holding"), and the person releases it.
 export const NO_STATE = { editing: false, review: false, reviewAt: null, discuss: [], hold: 'off', holdAt: null }
 const HOLDS = new Set(['off', 'requested', 'holding'])
-const PANELS = new Set(['plan', 'now', 'trail', 'memory'])
+const PANELS = new Set(['plan', 'now', 'trail', 'memory', 'foryou'])
 const str = (v, max = 2000) => (typeof v === 'string' ? v.slice(0, max) : null)
 function cleanMark(m) {
   if (!m || typeof m.id !== 'string' || !PANELS.has(m.panel) || typeof m.key !== 'string') return null
-  const answered = m.status === 'answered'
+  // open: a request to discuss; off: turned off by the person, kept so it
+  // can be turned on again; answered: the agent has answered it.
+  const status = ['open', 'off', 'answered'].includes(m.status) ? m.status : 'open'
+  const answered = status === 'answered' || (status === 'off' && typeof m.answer === 'string')
   return {
     id: m.id.slice(0, 40),
     panel: m.panel,
@@ -65,7 +68,7 @@ function cleanMark(m) {
     text: str(m.text) ?? '',
     note: str(m.note),
     at: str(m.at, 40),
-    status: answered ? 'answered' : 'open',
+    status,
     answer: answered ? str(m.answer) : null,
     answeredAt: answered ? str(m.answeredAt, 40) : null,
   }
@@ -272,6 +275,10 @@ export function openBoard(id, { title = null, dir = BOARDS, onRequest, onExterna
       list.push({ ...op.mark, id: `d${Date.now().toString(36)}${Math.floor(Math.random() * 1296).toString(36)}`, at: now(), status: 'open' })
     } else if (op?.op === 'remove') {
       list = list.filter((m) => m.id !== op.id)
+    } else if (op?.op === 'toggle') {
+      // The flag: an open request is turned off; one turned off or answered
+      // is requested again.
+      list = list.map((m) => (m.id === op.id ? { ...m, status: m.status === 'open' ? 'off' : 'open', at: m.status === 'open' ? m.at : now() } : m))
     }
     return setState({ discuss: list })
   }

@@ -213,6 +213,9 @@ input[type='search'] {
 .desk > .memory-col {
   flex: 2.2 1 0;
 }
+.desk > .discuss-col {
+  flex: 2.2 1 0;
+}
 .desk[hidden] {
   display: none;
 }
@@ -556,9 +559,43 @@ input[type='search'] {
 }
 
 /* ---- discussing a row (R2.7) ---- */
-.discuss-open {
-  box-shadow: inset 3px 0 0 var(--accent);
-  background: rgba(192, 72, 94, 0.12);
+/* The flag column, at the left of every markable row. */
+.flaggable {
+  position: relative;
+  padding-left: 22px;
+}
+.flag-cell {
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  width: 18px;
+}
+.flag {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+.flag.on {
+  color: var(--accent);
+}
+.flag.off {
+  color: var(--muted);
+  opacity: 0.55;
+}
+.flag:hover {
+  opacity: 1;
+}
+/* On a For-you tile the flag sits on the tile's corner. */
+.delivery-file.flaggable {
+  padding-left: 4px;
+}
+.delivery-file .flag-cell {
+  z-index: 1;
 }
 .discuss-answer {
   /* inline-block, so that a completed step's strike-through does not reach it */
@@ -569,60 +606,6 @@ input[type='search'] {
   margin: 2px 0 2px 6px;
   font-size: 12px;
   color: var(--ok);
-}
-.discuss-strip {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px 10px;
-  padding: 6px 16px;
-  border-bottom: 1px solid var(--line);
-  background: var(--panel);
-  font-size: 12px;
-}
-.discuss-strip[hidden] {
-  display: none;
-}
-.strip-title {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--accent-soft);
-}
-.strip-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  max-width: 520px;
-  padding: 2px 4px 2px 8px;
-  border: 1px solid var(--accent);
-  border-radius: 5px;
-}
-.strip-item.answered {
-  border-color: var(--line);
-}
-.strip-item .where {
-  color: var(--muted);
-}
-.strip-item .what,
-.strip-item .note,
-.strip-item .answer {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-width: 0;
-}
-.strip-item .note {
-  color: var(--accent-soft);
-}
-.strip-item .answer {
-  color: var(--ok);
-}
-.strip-item .x {
-  flex: none;
-  padding: 0 6px;
-  font-size: 11px;
 }
 .ctx-menu {
   position: fixed;
@@ -735,4 +718,121 @@ input[type='search'] {
   color: var(--muted);
   text-decoration: line-through;
   cursor: default;
+}
+
+/* ---- the preview of a delivered file ---- */
+.viewer-box.wide {
+  width: min(1200px, 94vw);
+  max-height: 92vh;
+}
+.preview-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.preview-image {
+  display: block;
+  max-width: 100%;
+  max-height: 72vh;
+  margin: 0 auto;
+  object-fit: contain;
+}
+.preview-pdf {
+  width: 100%;
+  height: 72vh;
+  border: 0;
+  background: #fff;
+}
+.preview-text {
+  max-height: 72vh;
+  overflow: auto;
+  margin: 0;
+  white-space: pre-wrap;
+}
+.preview-bar {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+/* ---- the requests to discuss: list, header button, drop-down, jump ---- */
+.discuss-item {
+  display: flex;
+  gap: 6px;
+  padding: 6px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.discuss-item:hover {
+  background: var(--raised);
+}
+.discuss-item.open .discuss-what {
+  color: var(--fg);
+}
+.discuss-item:not(.open) .discuss-what {
+  color: var(--muted);
+}
+.discuss-body {
+  min-width: 0;
+}
+.discuss-what {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.discuss-meta {
+  font-size: 11px;
+  color: var(--muted);
+}
+.discuss-note {
+  font-size: 12px;
+  color: var(--accent-soft);
+}
+.discuss-ans {
+  font-size: 12px;
+  color: var(--ok);
+}
+.bar .discuss-btn {
+  margin-left: auto;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+}
+.bar .discuss-btn[hidden] {
+  display: none;
+}
+.bar .discuss-btn.lit {
+  color: var(--accent-soft);
+  border-color: var(--accent);
+}
+.bar .discuss-btn + .hold {
+  margin-left: 0;
+}
+.discuss-drop {
+  position: fixed;
+  z-index: 40;
+  width: 420px;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 6px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+.discuss-drop[hidden] {
+  display: none;
+}
+@keyframes jump-fade {
+  from {
+    background-color: rgba(192, 72, 94, 0.45);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+.jumped {
+  animation: jump-fade 2s ease-out;
 }
