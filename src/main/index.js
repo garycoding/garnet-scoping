@@ -10,7 +10,7 @@ import { app, BrowserWindow, ipcMain, session, shell, Menu } from 'electron'
 import { join, resolve, sep, isAbsolute } from 'node:path'
 import { homedir } from 'node:os'
 import { watch, existsSync } from 'node:fs'
-import { readFile } from 'node:fs/promises'
+import { readFile, stat } from 'node:fs/promises'
 import { listSessions } from './transcript/sessions.js'
 import { listMemory } from './transcript/memory.js'
 import { follow } from './follower.js'
@@ -22,6 +22,8 @@ import { openSetupInfo } from './setupInfo.js'
 const CLAUDE = join(homedir(), '.claude')
 const PROJECTS = join(CLAUDE, 'projects')
 const PUSH_MS = 400
+// Files the preview shows as text.
+const TEXT_FILE = /\.(md|markdown|txt|text|log|json|csv|tsv|ya?ml|toml|ini|xml|html?|css|js|mjs|cjs|ts|tsx|jsx|py|rb|rs|go|java|kt|swift|c|h|cpp|sh|zsh|sql)$/i
 
 let listWindow = null
 let settingsWindow = null
@@ -41,7 +43,8 @@ function load(win, page, query) {
   else win.loadFile(target.file, { query: target.query })
 }
 
-const webPreferences = () => ({ preload: join(__dirname, '../preload/index.js'), contextIsolation: true, sandbox: true })
+// plugins: Chromium's own PDF viewer, for previews of delivered PDFs.
+const webPreferences = () => ({ preload: join(__dirname, '../preload/index.js'), contextIsolation: true, sandbox: true, plugins: true })
 
 function createListWindow() {
   if (listWindow && !listWindow.isDestroyed()) return listWindow.focus()
@@ -147,11 +150,21 @@ function registerIpc() {
   ipcMain.handle('session:discuss', (e, op) => entryOf(e)?.board.discuss(op))
   ipcMain.handle('board:save', (e, scene) => entryOf(e)?.board.save(scene))
   ipcMain.handle('board:ready', (e) => entryOf(e)?.board.ready())
-  // Opens a file the agent delivered in this session, with its default app.
-  ipcMain.handle('file:open', (e, p) => {
+  // Files the agent delivered in this session: opened with their default
+  // app, or read for the in-app preview. Only delivered files are served.
+  const delivered = (e, p) => {
     const w = entryOf(e)
-    const ok = w && typeof p === 'string' && (w.follower.view().deliveries ?? []).some((d) => d.files.includes(p))
-    if (ok) shell.openPath(p)
+    return Boolean(w && typeof p === 'string' && (w.follower.view().deliveries ?? []).some((d) => d.files.includes(p)))
+  }
+  ipcMain.handle('file:open', (e, p) => {
+    if (delivered(e, p)) shell.openPath(p)
+  })
+  ipcMain.handle('file:read', async (e, p) => {
+    if (!delivered(e, p)) return null
+    const info = await stat(p).catch(() => null)
+    if (!info) return { kind: 'gone' }
+    if (TEXT_FILE.test(p) && info.size <= 1024 * 1024) return { kind: 'text', text: await readFile(p, 'utf8'), size: info.size }
+    return { kind: 'other', size: info.size }
   })
   // Shows a folder or file in the Finder (S7); only absolute paths.
   ipcMain.handle('finder:show', (_e, p) => {

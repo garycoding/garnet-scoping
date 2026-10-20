@@ -39,7 +39,8 @@ let view = null
 let memory = null
 
 // ---- the viewer: a note, or an action's command and output ----
-function showViewer(title, body) {
+function showViewer(title, body, { wide = false } = {}) {
+  $('viewer').querySelector('.viewer-box').classList.toggle('wide', wide)
   $('viewer-title').textContent = title
   $('viewer-body').replaceChildren(body)
   $('viewer').hidden = false
@@ -54,7 +55,7 @@ window.addEventListener('keydown', (e) => e.key === 'Escape' && ($('viewer').hid
 // menu marks it with or without a note. Marks live in the session's state
 // file, where the agent's watcher sees them; the agent answers them there.
 let marks = []
-const PANEL_NAMES = { plan: 'Plan', now: 'Now', trail: 'Trail', memory: 'Memory' }
+const PANEL_NAMES = { plan: 'Plan', now: 'Now', trail: 'Trail', memory: 'Memory', foryou: 'For you' }
 const openMark = (key) => marks.find((m) => m.key === key && m.status === 'open')
 const answeredMark = (key) => marks.findLast((m) => m.key === key && m.status === 'answered')
 
@@ -125,7 +126,7 @@ const menu = $('ctx-menu')
 function closeMenu() {
   menu.hidden = true
 }
-function showMenu(e, row) {
+function showMenu(e, row, extra = []) {
   e.preventDefault()
   const items = [
     ['Discuss', () => mark(row)],
@@ -133,6 +134,7 @@ function showMenu(e, row) {
   ]
   const m = openMark(row.key)
   if (m) items.push(['Withdraw the discussion', () => withdraw(m.id)])
+  items.push(...extra)
   menu.replaceChildren(
     ...items.map(([label, act]) => {
       const b = el('button', null, label)
@@ -156,7 +158,7 @@ window.addEventListener('blur', closeMenu)
 
 // Makes a row markable. Its own click, if any, waits a moment so that a
 // double-click does not also open it.
-function markable(node, row, onClick = null) {
+function markable(node, row, onClick = null, extra = []) {
   let timer = null
   if (onClick) {
     node.addEventListener('click', (e) => {
@@ -171,7 +173,7 @@ function markable(node, row, onClick = null) {
     window.getSelection()?.removeAllRanges()
     toggleMark(row)
   })
-  node.addEventListener('contextmenu', (e) => showMenu(e, row))
+  node.addEventListener('contextmenu', (e) => showMenu(e, row, extra))
   if (openMark(row.key)) node.classList.add('discuss-open')
   const done = answeredMark(row.key)
   if (done?.answer) node.append(el('div', 'discuss-answer', `Answered: ${done.answer}`))
@@ -284,7 +286,7 @@ function renderForYou() {
       for (const f of d.files) {
         const tile = el('button', `delivery-file${f.exists ? '' : ' gone'}`)
         tile.type = 'button'
-        tile.title = f.exists ? `${f.path}\nClick to open; right-click to show in the Finder.` : `${f.path}\nNo longer on disk.`
+        tile.title = f.exists ? `${f.path}\nClick to preview; right-click for more.` : `${f.path}\nNo longer on disk.`
         if (f.exists && IMAGE.test(f.path)) {
           const img = el('img')
           img.src = `file://${encodeURI(f.path)}`
@@ -292,19 +294,53 @@ function renderForYou() {
           tile.append(img)
         }
         tile.append(el('span', 'name', basename(f.path)))
-        if (f.exists) {
-          tile.addEventListener('click', () => window.garnet.openFile(f.path))
-          tile.addEventListener('contextmenu', (e) => {
-            e.preventDefault()
-            window.garnet.showInFinder(f.path)
-          })
-        }
-        files.append(tile)
+        const row = { panel: 'foryou', key: `file:${f.path}`, text: `${basename(f.path)}${d.caption ? ` (${d.caption})` : ''}` }
+        const extra = f.exists
+          ? [
+              ['Open in its default app', () => window.garnet.openFile(f.path)],
+              ['Show in the Finder', () => window.garnet.showInFinder(f.path)],
+            ]
+          : []
+        files.append(markable(tile, row, f.exists ? () => previewFile(f.path, row) : null, extra))
       }
       item.append(files)
       return item
     }),
   )
+}
+
+// The in-app preview of a delivered file, in the viewer overlay.
+async function previewFile(path, row) {
+  const name = basename(path)
+  const body = el('div', 'preview')
+  if (IMAGE.test(path)) {
+    const img = el('img', 'preview-image')
+    img.src = `file://${encodeURI(path)}`
+    img.alt = name
+    body.append(img)
+  } else if (/\.pdf$/i.test(path)) {
+    const frame = el('iframe', 'preview-pdf')
+    frame.src = `file://${encodeURI(path)}`
+    body.append(frame)
+  } else {
+    const r = await window.garnet.readFile(path)
+    if (r?.kind === 'text') body.append(/\.(md|markdown)$/i.test(path) ? markdown(r.text) : Object.assign(el('pre', 'preview-text'), { textContent: r.text }))
+    else if (r?.kind === 'gone') body.append(el('p', 'muted', 'This file is no longer on disk.'))
+    else body.append(el('p', 'muted', `No preview for this kind of file${r?.size != null ? ` (${Math.ceil(r.size / 1024)} KB)` : ''}.`))
+  }
+  const bar = el('div', 'preview-bar')
+  for (const [label, act] of [
+    ['Open in its default app', () => window.garnet.openFile(path)],
+    ['Show in the Finder', () => window.garnet.showInFinder(path)],
+    ['Discuss…', () => askNote(row)],
+  ]) {
+    const b = el('button', null, label)
+    b.type = 'button'
+    b.addEventListener('click', act)
+    bar.append(b)
+  }
+  showViewer(name, Object.assign(el('div'), { className: 'preview-wrap' }), { wide: true })
+  $('viewer-body').firstChild.append(body, bar)
 }
 
 // ---- the trail (R3) ----
