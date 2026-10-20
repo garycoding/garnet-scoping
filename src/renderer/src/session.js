@@ -259,11 +259,52 @@ function renderPresent() {
   else if (lw?.working) box.append(el('div', 'muted', 'The agent is at work.'))
   if (!box.childNodes.length) box.append(el('span', 'muted', 'Nothing yet.'))
 
+  renderForYou()
+
   const t = $('touched')
   t.replaceChildren()
   if (view.touched.files.length) t.append(pathList(view.touched.files, 'files'))
   if (view.touched.notes.length) t.append(el('h2', null, 'Memory notes'), pathList(view.touched.notes, 'notes'))
   if (!t.childNodes.length) t.append(el('span', 'muted', 'No files or notes yet this turn.'))
+}
+
+// ---- For you (R2.9): the files the agent sent the person ----
+const IMAGE = /\.(png|jpe?g|gif|webp|svg)$/i
+function renderForYou() {
+  const box = $('for-you')
+  const list = view.deliveries ?? []
+  if (!list.length) return box.replaceChildren(el('span', 'muted', 'No files sent yet in this session.'))
+  box.replaceChildren(
+    ...list.slice(0, 6).map((d) => {
+      const item = el('div', 'delivery')
+      const head = el('div', 'delivery-head')
+      head.append(el('span', 'caption', d.caption || (d.files.length === 1 ? basename(d.files[0].path) : `${d.files.length} files`)), el('span', 'when', ago(d.at)))
+      item.append(head)
+      const files = el('div', 'delivery-files')
+      for (const f of d.files) {
+        const tile = el('button', `delivery-file${f.exists ? '' : ' gone'}`)
+        tile.type = 'button'
+        tile.title = f.exists ? `${f.path}\nClick to open; right-click to show in the Finder.` : `${f.path}\nNo longer on disk.`
+        if (f.exists && IMAGE.test(f.path)) {
+          const img = el('img')
+          img.src = `file://${encodeURI(f.path)}`
+          img.alt = basename(f.path)
+          tile.append(img)
+        }
+        tile.append(el('span', 'name', basename(f.path)))
+        if (f.exists) {
+          tile.addEventListener('click', () => window.garnet.openFile(f.path))
+          tile.addEventListener('contextmenu', (e) => {
+            e.preventDefault()
+            window.garnet.showInFinder(f.path)
+          })
+        }
+        files.append(tile)
+      }
+      item.append(files)
+      return item
+    }),
+  )
 }
 
 // ---- the trail (R3) ----

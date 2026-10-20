@@ -7,6 +7,7 @@ A macOS desktop app that shows what a Claude Code session is doing, for the pers
 It reads each session's transcript, the file Claude Code writes as the session runs, and lists the sessions on the machine, the most recent first. Opening one shows its window:
 
 - **Desk:** the agent's plan and the step it is on, what it is doing now, what it is waiting on, the files it has read and changed, the project's memory notes, its last word and any question it has not had answered, and beneath them the session's trail, turn by turn.
+- **For you:** the files the agent has sent you in the session, newest first, with thumbnails for images; click one to open it.
 - **Board:** an Excalidraw whiteboard for that session. The person drops shapes onto it, writes in them and connects them with lines and arrows; the agent reads the board as text and changes it by writing a request file.
 
 The app only reads what Claude Code writes: it never writes under `~/.claude`, and it makes no network connection. Each window follows its transcript as it grows, so the Desk is current whilst the session runs.

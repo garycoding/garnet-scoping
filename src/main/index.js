@@ -9,7 +9,7 @@
 import { app, BrowserWindow, ipcMain, session, shell, Menu } from 'electron'
 import { join, resolve, sep, isAbsolute } from 'node:path'
 import { homedir } from 'node:os'
-import { watch } from 'node:fs'
+import { watch, existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { listSessions } from './transcript/sessions.js'
 import { listMemory } from './transcript/memory.js'
@@ -119,7 +119,11 @@ function registerIpc() {
     const w = entryOf(e)
     if (!w) return null
     await w.follower.ready
-    return { ...w.follower.view(), project: w.project }
+    const v = w.follower.view()
+    // Each delivered file, with whether it still exists (scratch folders are
+    // cleared in time).
+    const deliveries = (v.deliveries ?? []).map((d) => ({ ...d, files: d.files.map((p) => ({ path: p, exists: existsSync(p) })) }))
+    return { ...v, deliveries, project: w.project }
   })
   ipcMain.handle('session:detail', (e, actionId) => entryOf(e)?.follower.detail(actionId) ?? null)
   ipcMain.handle('memory:list', (e) => {
@@ -143,6 +147,12 @@ function registerIpc() {
   ipcMain.handle('session:discuss', (e, op) => entryOf(e)?.board.discuss(op))
   ipcMain.handle('board:save', (e, scene) => entryOf(e)?.board.save(scene))
   ipcMain.handle('board:ready', (e) => entryOf(e)?.board.ready())
+  // Opens a file the agent delivered in this session, with its default app.
+  ipcMain.handle('file:open', (e, p) => {
+    const w = entryOf(e)
+    const ok = w && typeof p === 'string' && (w.follower.view().deliveries ?? []).some((d) => d.files.includes(p))
+    if (ok) shell.openPath(p)
+  })
   // Shows a folder or file in the Finder (S7); only absolute paths.
   ipcMain.handle('finder:show', (_e, p) => {
     if (typeof p === 'string' && isAbsolute(p)) shell.showItemInFolder(p)
