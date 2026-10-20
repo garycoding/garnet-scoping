@@ -4,6 +4,20 @@ All notable changes to this project are recorded here.
 
 ## [Unreleased]
 
+## [v0.8.0] - 2026-10-20
+
+### Highlights
+
+_Highlights were not generated for this release._
+
+### Features
+
+- Claude Code runs the watcher itself, as a rewake hook (#50)
+
+### Docs
+
+- The Ubuntu install command (#49)
+
 ## [v0.7.0] - 2026-10-20
 
 ### Highlights
