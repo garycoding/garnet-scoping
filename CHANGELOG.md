@@ -4,6 +4,16 @@ All notable changes to this project are recorded here.
 
 ## [Unreleased]
 
+## [v0.2.1] - 2026-10-19
+
+### Highlights
+
+_Highlights were not generated for this release._
+
+### Bug fixes
+
+- The plan is complete once the agent wraps up (#19)
+
 ## [v0.2.0] - 2026-10-19
 
 ### Highlights
