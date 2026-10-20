@@ -143,8 +143,8 @@ describe('the board on disk', () => {
   })
 
   it('cleans a state read from disk', () => {
-    expect(cleanState({ editing: 'yes', review: true, reviewAt: 5, x: 1 })).toEqual({ editing: false, review: true, reviewAt: null, discuss: [] })
-    expect(cleanState(null)).toEqual({ editing: false, review: false, reviewAt: null, discuss: [] })
+    expect(cleanState({ editing: 'yes', review: true, reviewAt: 5, x: 1 })).toEqual({ editing: false, review: true, reviewAt: null, discuss: [], hold: 'off', holdAt: null })
+    expect(cleanState(null)).toEqual({ editing: false, review: false, reviewAt: null, discuss: [], hold: 'off', holdAt: null })
     const marks = cleanState({ discuss: [{ id: 'd1', panel: 'plan', key: 'plan:0', text: 'One', status: 'open', answer: 'x' }, { id: 'd2', panel: 'elsewhere', key: 'k' }, null] }).discuss
     expect(marks).toEqual([{ id: 'd1', panel: 'plan', key: 'plan:0', text: 'One', note: null, at: null, status: 'open', answer: null, answeredAt: null }])
   })
@@ -167,6 +167,26 @@ describe('the board on disk', () => {
     expect(await readFile(b.paths.rendition, 'utf8')).toMatch(/^Discuss: 1 open/m)
     await b.discuss({ op: 'remove', id: second.id })
     expect((await b.state()).discuss.map((m) => m.id)).toEqual([first.id])
+    b.close()
+  })
+
+  it('holds: the person asks, the agent confirms, the person releases', async () => {
+    const states = []
+    const b = openBoard('s8', { dir, onRequest() {}, onExternal() {}, onState: (st) => states.push(st) })
+    // "holding" cannot start a hold.
+    await writeFile(b.paths.request, JSON.stringify({ holding: true }))
+    await new Promise((r) => setTimeout(r, 300))
+    expect((await b.state()).hold).toBe('off')
+    await b.setState({ hold: 'requested' })
+    let text = await readFile(b.paths.rendition, 'utf8')
+    expect(text).toMatch(/^Hold: requested at .*finish the step you are in/m)
+    await writeFile(b.paths.request, JSON.stringify({ holding: true }))
+    await until(() => states.at(-1)?.hold === 'holding')
+    expect(await readFile(b.paths.rendition, 'utf8')).toMatch(/^Hold: holding/m)
+    await b.setState({ hold: 'off' })
+    const st = await b.state()
+    expect([st.hold, st.holdAt]).toEqual(['off', null])
+    expect(await readFile(b.paths.rendition, 'utf8')).toMatch(/^Hold: no$/m)
     b.close()
   })
 })
