@@ -17,6 +17,7 @@ import { follow } from './follower.js'
 import { openBoard } from './board.js'
 import { openAboutWindow, openLicensesWindow } from './about.js'
 import { loadSettings, saveSettings, clean } from './settings.js'
+import { openSetupInfo } from './setupInfo.js'
 
 const CLAUDE = join(homedir(), '.claude')
 const PROJECTS = join(CLAUDE, 'projects')
@@ -177,13 +178,14 @@ function buildMenu() {
   const about = { label: 'About garnet-scoping', click: () => openAboutWindow() }
   const licenses = { label: 'Open Source Licenses…', click: () => openLicensesWindow() }
   const prefs = { label: 'Settings…', accelerator: 'CmdOrCtrl+,', click: () => openSettings() }
+  const setupInfo = { label: 'Set-up Info…', click: () => openSetupInfo() }
   Menu.setApplicationMenu(
     Menu.buildFromTemplate([
       ...(isMac
         ? [
             {
               role: 'appMenu',
-              submenu: [about, licenses, { type: 'separator' }, prefs, { type: 'separator' }, { role: 'services' }, { type: 'separator' }, { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' }, { type: 'separator' }, { role: 'quit' }],
+              submenu: [about, setupInfo, licenses, { type: 'separator' }, prefs, { type: 'separator' }, { role: 'services' }, { type: 'separator' }, { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' }, { type: 'separator' }, { role: 'quit' }],
             },
           ]
         : []),
@@ -191,7 +193,7 @@ function buildMenu() {
       { role: 'editMenu' },
       { label: 'View', submenu: [{ role: 'reload' }, { role: 'toggleDevTools' }, { type: 'separator' }, { role: 'resetZoom' }, { role: 'zoomIn' }, { role: 'zoomOut' }] },
       { role: 'windowMenu' },
-      { role: 'help', submenu: [about, licenses] },
+      { role: 'help', submenu: [setupInfo, about, licenses] },
     ]),
   )
 }

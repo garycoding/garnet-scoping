@@ -15,7 +15,7 @@ SPDX-License-Identifier = "CC-BY-4.0"
 
 # --- Code, build configuration, workflows → AGPL-3.0-or-later --------------
 [[annotations]]
-path = [".github/**", "LICENSE", "src/**", "scripts/**", "tests/**", "package.json", "package-lock.json", "electron.vite.config.js", "electron-builder.yml", "eslint.config.mjs"]
+path = [".github/**", "LICENSE", "src/**", "channel/**", "setup/**", "scripts/**", "tests/**", "package.json", "package-lock.json", "electron.vite.config.js", "electron-builder.yml", "eslint.config.mjs"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 Gary Frattarola <garyf@parkviewlab.ai>"
 SPDX-License-Identifier = "AGPL-3.0-or-later"
