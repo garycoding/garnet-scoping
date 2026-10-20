@@ -4,6 +4,16 @@ All notable changes to this project are recorded here.
 
 ## [Unreleased]
 
+## [v0.2.2] - 2026-10-19
+
+### Highlights
+
+_Highlights were not generated for this release._
+
+### Bug fixes
+
+- The board keeps its full layout on a left or right half (#21)
+
 ## [v0.2.1] - 2026-10-19
 
 ### Highlights
