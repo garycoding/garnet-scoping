@@ -559,43 +559,57 @@ input[type='search'] {
 }
 
 /* ---- discussing a row (R2.7) ---- */
-/* The flag column, at the left of every markable row. */
-.flaggable {
-  position: relative;
-  padding-left: 22px;
-}
-.flag-cell {
-  position: absolute;
-  left: 2px;
-  top: 2px;
-  width: 18px;
-}
-.flag {
-  display: grid;
-  place-items: center;
-  width: 18px;
-  height: 18px;
-  padding: 0;
-  border: 0;
-  background: none;
+/* The Discuss badge, on a marked row, in the list and on the header button. */
+.discuss-badge {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 0 7px;
+  border-radius: 9px;
+  border: 1px solid var(--accent);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 16px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  vertical-align: 1px;
   cursor: pointer;
+  white-space: nowrap;
 }
-.flag.on {
-  color: var(--accent);
+.discuss-badge.on {
+  background: var(--accent);
+  color: #fff;
 }
-.flag.off {
+.discuss-badge.off {
+  background: none;
   color: var(--muted);
-  opacity: 0.55;
+  border-color: var(--line);
 }
-.flag:hover {
-  opacity: 1;
+.discuss-badge:hover {
+  border-color: var(--accent-soft);
 }
-/* On a For-you tile the flag sits on the tile's corner. */
-.delivery-file.flaggable {
-  padding-left: 4px;
+/* On a For-you tile the badge sits on the tile's top corner. */
+.delivery-file.badged-file {
+  position: relative;
 }
-.delivery-file .flag-cell {
+.delivery-file > .discuss-badge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  margin: 0;
   z-index: 1;
+}
+/* On a row: at its right-hand end. */
+.action.badged {
+  grid-template-columns: 1fr auto auto;
+}
+.action.badged > .discuss-badge,
+.turn > header > .discuss-badge {
+  margin: 0;
+  align-self: center;
+}
+.discuss-badge.end {
+  float: right;
+  margin: 1px 0 0 8px;
 }
 .discuss-answer {
   /* inline-block, so that a completed step's strike-through does not reach it */
@@ -803,6 +817,15 @@ input[type='search'] {
 .bar .discuss-btn[hidden] {
   display: none;
 }
+.bar .discuss-btn .discuss-badge {
+  margin-right: 0;
+  pointer-events: none;
+}
+.bar .discuss-btn:not(.lit) .discuss-badge {
+  background: none;
+  color: var(--muted);
+  border-color: var(--line);
+}
 .bar .discuss-btn.lit {
   color: var(--accent-soft);
   border-color: var(--accent);
@@ -835,4 +858,8 @@ input[type='search'] {
 }
 .jumped {
   animation: jump-fade 2s ease-out;
+}
+.discuss-item > .discuss-badge {
+  align-self: flex-start;
+  margin-top: 2px;
 }
