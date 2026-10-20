@@ -25,7 +25,7 @@ Download from the [releases page](https://github.com/garycoding/garnet-scoping/r
 - **Ubuntu (x64):** the `.deb` puts the app in `/opt/garnet-scoping` and in the applications menu. On Ubuntu, install with:
 
   ```bash
-  sudo apt install ./garnet-scoping-0.7.0-amd64.deb
+  sudo apt install ./garnet-scoping-0.8.0-amd64.deb
   ```
 
   Or run the `.AppImage` directly after `chmod +x` on it. With the AppImage, the watcher cannot find the app's binary on its own; set `GARNET_SCOPING_APP` to the AppImage's path in your shell profile.
