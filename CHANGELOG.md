@@ -4,6 +4,16 @@ All notable changes to this project are recorded here.
 
 ## [Unreleased]
 
+## [v0.6.2] - 2026-10-20
+
+### Highlights
+
+_Highlights were not generated for this release._
+
+### Bug fixes
+
+- The jump highlight in yellow (#45)
+
 ## [v0.6.1] - 2026-10-20
 
 ### Highlights

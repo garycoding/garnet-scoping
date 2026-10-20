@@ -1,6 +1,6 @@
 {
   "name": "garnet-scoping",
-  "version": "0.6.2-dev0",
+  "version": "0.6.2",
   "description": "A desk for each Claude Code session: the agent's plan, actions, files, memory and waits, read live from the session transcript, beside a shared whiteboard",
   "author": "Gary Frattarola <garyf@parkviewlab.ai>",
   "license": "AGPL-3.0-or-later",
