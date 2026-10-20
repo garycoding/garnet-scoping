@@ -40,12 +40,16 @@ export function setupTexts() {
   const mcp = JSON.stringify({ mcpServers: { garnet: { command: binary, args: [channelScript], env: { ELECTRON_RUN_AS_NODE: '1' } } } }, null, 2)
   const prompt = `Please set up garnet-scoping for all my Claude Code sessions. Read each file before installing it.
 
-1. Copy ${join(setup, 'garnet-watch.sh')} and ${join(setup, 'garnet-session-start.sh')} into ~/.claude/hooks/ and make them executable.
-2. In ~/.claude/settings.json, add a SessionStart hook with the matcher "startup|resume" whose command is: bash ~/.claude/hooks/garnet-session-start.sh. Keep every hook already there.
+1. Copy ${join(setup, 'garnet-watch.sh')}, ${join(setup, 'garnet-rewake.sh')} and ${join(setup, 'garnet-session-start.sh')} into ~/.claude/hooks/ and make them executable.
+2. In ~/.claude/settings.json, keeping every hook already there, add three command hooks:
+   - SessionStart, matcher "startup|resume": bash ~/.claude/hooks/garnet-session-start.sh
+   - SessionStart, matcher "startup|resume": bash ~/.claude/hooks/garnet-rewake.sh, with "asyncRewake": true and "timeout": 86400
+   - Stop: bash ~/.claude/hooks/garnet-rewake.sh, with "asyncRewake": true and "timeout": 86400
+   The last two make Claude Code itself run the watcher, at session start and at the end of every turn, and wake the session when a signal arrives.
 3. Append the section in ${join(setup, 'claude-md-section.md')} to ~/.claude/CLAUDE.md, unless a section "garnet-scoping signals" is already there.
 4. Write ${mcpPath} with this content, for the channel (used only by terminal sessions started with it):
 ${mcp}
-5. Start the watcher in this session now: run bash ~/.claude/hooks/garnet-watch.sh in the background.`
+Nothing needs starting by hand: from the end of this turn on, Claude Code runs the watcher in every session.`
   const command = `claude --mcp-config ${mcpPath} --dangerously-load-development-channels server:garnet`
   return { prompt, mcp, mcpPath, command }
 }

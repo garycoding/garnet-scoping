@@ -24,21 +24,25 @@ done
 # The modification time of a file: BSD stat on macOS, GNU stat on Linux.
 mtime() { stat -f %m "$1" 2>/dev/null || stat -c %Y "$1" 2>/dev/null; }
 
-# The signals standing in the state file, one per line, each with the time it
-# was given, so that a signal given again counts as new.
+# The signals standing in the state file, one per line: a key (the signal
+# and the time it was given, so that a signal given again counts as new),
+# a tab, and a description for the agent.
 signals() {
   local out
   if [ -n "$app" ] && [ -x "$app" ] && out=$(ELECTRON_RUN_AS_NODE=1 "$app" -e '
       const s = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"))
       const out = []
-      if (s.review) out.push("review " + s.reviewAt)
-      if (s.hold === "requested") out.push("hold " + s.holdAt)
-      for (const m of s.discuss || []) if (m.status === "open") out.push("discuss " + m.id + " " + m.at)
+      const where = { plan: "Plan", now: "Now", trail: "Trail", memory: "Memory", foryou: "For you" }
+      const one = (t) => String(t ?? "").replace(/\s+/g, " ").slice(0, 300)
+      if (s.review) out.push("review " + s.reviewAt + "\tReview: read the board now.")
+      if (s.hold === "requested") out.push("hold " + s.holdAt + "\tHold: finish the step in progress, start no other, and wait.")
+      for (const m of s.discuss || []) if (m.status === "open")
+        out.push("discuss " + m.id + " " + m.at + "\tDiscuss (" + (where[m.panel] || m.panel) + ", id " + m.id + "): \"" + one(m.text) + "\"" + (m.note ? " Note: \"" + one(m.note) + "\"" : ""))
       console.log(out.join("\n"))' "$state" 2>/dev/null); then
     echo "$out"
   else
     # Without a working app binary, any standing signal counts.
-    grep -qE '"review": true|"status": "open"|"hold": "requested"' "$state" 2>/dev/null && date +%s
+    grep -qE '"review": true|"status": "open"|"hold": "requested"' "$state" 2>/dev/null && printf '%s\t%s\n' "$(date +%s)" "A signal is standing; read $state."
   fi
 }
 
@@ -48,13 +52,15 @@ while true; do
   m=$(mtime "$state")
   if [ -n "$m" ] && [ "$m" != "$last" ]; then
     last="$m"
-    now=$(signals | sort)
+    lines=$(signals)
+    now=$(printf '%s\n' "$lines" | cut -f1 | grep -v '^$' | sort)
     new=$(comm -13 <(sort "$seen" 2>/dev/null) <(echo "$now") | grep -v '^$')
     if [ -n "$new" ]; then
       echo "$now" > "$seen"
-      date -u +"garnet-scoping signal seen at %H:%M:%SZ"
-      echo "New: $new"
-      grep -E '"review"|"hold"|"status": "open"|"text"|"note"' "$state" | head -40
+      date -u +"New signal at %H:%M:%SZ:"
+      # Only the new signals, described.
+      printf '%s\n' "$lines" | grep -F -f <(echo "$new") | cut -f2- | sed 's/^/- /'
+      echo "State: $state"
       echo "Rendition: $dir/$id.board.md"
       exit 0
     fi
