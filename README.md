@@ -90,7 +90,7 @@ The transcript is Claude Code's internal format, not a published interface, and 
 
 ## Documents
 
-The requirements are in [`docs/requirements.md`](docs/requirements.md) and the design in [`docs/design.md`](docs/design.md). Ideas not yet decided are in [`docs/in-flight_ideas.md`](docs/in-flight_ideas.md).
+The project's purpose, its intents and the axioms that follow from them are in [`docs/northstar.md`](docs/northstar.md), the authority over every other document. The requirements are in [`docs/requirements.md`](docs/requirements.md) and the design in [`docs/design.md`](docs/design.md). Ideas not yet decided are in [`docs/in-flight_ideas.md`](docs/in-flight_ideas.md).
 
 ## Contributing
 
