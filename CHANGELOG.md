@@ -4,6 +4,16 @@ All notable changes to this project are recorded here.
 
 ## [Unreleased]
 
+## [v0.8.2] - 2026-10-20
+
+### Highlights
+
+_Highlights were not generated for this release._
+
+### Bug fixes
+
+- Give the channel's meta values as strings (#55)
+
 ## [v0.8.1] - 2026-10-20
 
 ### Highlights
