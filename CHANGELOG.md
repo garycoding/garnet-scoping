@@ -4,6 +4,20 @@ All notable changes to this project are recorded here.
 
 ## [Unreleased]
 
+## [v0.8.1] - 2026-10-20
+
+### Highlights
+
+_Highlights were not generated for this release._
+
+### Bug fixes
+
+- Never run the watcher at a new session's start (#53)
+
+### Docs
+
+- The Ubuntu install command for 0.8.0 (#52)
+
 ## [v0.8.0] - 2026-10-20
 
 ### Highlights
