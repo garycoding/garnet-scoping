@@ -4,7 +4,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtemp, rm, readFile, writeFile, readdir } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { rendition, mergeElements, openBoard, cleanState } from '../src/main/board.js'
+import { rendition, mergeElements, openBoard, cleanState, inheritBoard } from '../src/main/board.js'
 
 const shape = (id, type, text, extra = {}) => [
   { id, type, x: 10, y: 20, width: 180, height: 80, version: 1, boundElements: [{ id: `${id}-t`, type: 'text' }], ...extra },
@@ -165,6 +165,14 @@ describe('the board on disk', () => {
     st = await b.state()
     expect(st.discuss.find((m) => m.id === first.id)).toMatchObject({ status: 'answered', answer: 'A flaky watcher; fixed.' })
     expect(await readFile(b.paths.rendition, 'utf8')).toMatch(/^Discuss: 1 open/m)
+    // The flag toggles: off, then requested again; an answered one is requested again.
+    await b.discuss({ op: 'toggle', id: second.id })
+    expect((await b.state()).discuss.find((m) => m.id === second.id).status).toBe('off')
+    expect(await readFile(b.paths.rendition, 'utf8')).toMatch(/^Discuss: nothing open$/m)
+    await b.discuss({ op: 'toggle', id: second.id })
+    expect((await b.state()).discuss.find((m) => m.id === second.id).status).toBe('open')
+    await b.discuss({ op: 'toggle', id: first.id })
+    expect((await b.state()).discuss.find((m) => m.id === first.id).status).toBe('open')
     await b.discuss({ op: 'remove', id: second.id })
     expect((await b.state()).discuss.map((m) => m.id)).toEqual([first.id])
     b.close()
@@ -188,5 +196,63 @@ describe('the board on disk', () => {
     expect([st.hold, st.holdAt]).toEqual(['off', null])
     expect(await readFile(b.paths.rendition, 'utf8')).toMatch(/^Hold: no$/m)
     b.close()
+  })
+
+  it('keeps images: in the board file, as files the agent can open, and in the rendition', async () => {
+    const b = openBoard('s9', { dir, onRequest() {}, onExternal() {} })
+    const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
+    const img = { id: 'pic', type: 'image', fileId: 'f1', x: 5, y: 6, width: 100, height: 50, version: 1 }
+    await b.save({ elements: [img], files: { f1: { id: 'f1', mimeType: 'image/png', dataURL: `data:image/png;base64,${png}` }, stale: { id: 'stale', mimeType: 'image/png', dataURL: 'data:image/png;base64,AA==' } } })
+    const data = JSON.parse(await readFile(b.paths.board, 'utf8'))
+    expect(Object.keys(data.files)).toEqual(['f1'])
+    const out = join(b.paths.files, 'f1.png')
+    expect((await readFile(out)).toString('base64')).toBe(png)
+    expect(await readFile(b.paths.rendition, 'utf8')).toContain(`- [pic] image at (5, 6) 100×50: ${out}`)
+    b.close()
+  })
+
+  it('reads an image the agent names by path, and reports one it cannot use', async () => {
+    const got = []
+    const b = openBoard('s10', { dir, onRequest: (r) => got.push(r), onExternal() {} })
+    b.ready()
+    const pic = join(dir, 'shot.png')
+    await writeFile(pic, Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64'))
+    await writeFile(b.paths.request, JSON.stringify({ add: [{ id: 'a', kind: 'image', path: pic }, { id: 'b', kind: 'image', path: join(dir, 'notes.txt') }] }))
+    await until(() => got.length > 0)
+    const [a, bad] = got[0].request.add
+    expect(a.mimeType).toBe('image/png')
+    expect(a.dataURL).toMatch(/^data:image\/png;base64,iVBOR/)
+    expect(bad.error).toMatch(/not an image/)
+    b.close()
+  })
+
+  it('lets a resumed session take over the earlier board once, by copy', async () => {
+    const old = openBoard('old', { dir, onRequest() {}, onExternal() {} })
+    await old.save({ elements: shape('a', 'rectangle', 'Kept'), files: {} })
+    await old.discuss({ op: 'mark', mark: { panel: 'plan', key: 'plan:x', text: 'Settled', note: null } })
+    const settled = (await old.state()).discuss[0]
+    await old.discuss({ op: 'toggle', id: settled.id })
+    await old.discuss({ op: 'mark', mark: { panel: 'plan', key: 'plan:y', text: 'Still open', note: null } })
+    old.close()
+    // The new session has a board of its own already, with a shape on it.
+    const fresh = openBoard('new', { dir, onRequest() {}, onExternal() {} })
+    await fresh.save({ elements: shape('b', 'ellipse', 'Mine'), files: {} })
+    fresh.close()
+    expect(await inheritBoard('new', ['none', 'old'], dir)).toBe('old')
+    const data = JSON.parse(await readFile(join(dir, 'new.excalidraw'), 'utf8'))
+    expect(data.inheritedFrom).toBe('old')
+    expect(data.elements.filter((e) => !e.containerId).map((e) => e.id).sort()).toEqual(['a', 'b'])
+    const state = JSON.parse(await readFile(join(dir, 'new.state.json'), 'utf8'))
+    expect(state.discuss.map((m) => [m.text, m.status])).toEqual([['Settled', 'off']])
+    expect(await readFile(join(dir, 'new.board.md'), 'utf8')).toContain('"Kept"')
+    // Once only; and the old board is unchanged.
+    expect(await inheritBoard('new', ['old'], dir)).toBe(null)
+    expect(JSON.parse(await readFile(join(dir, 'old.excalidraw'), 'utf8')).inheritedFrom).toBeUndefined()
+    // A later save keeps the record of where the board came from.
+    const again = openBoard('new', { dir, onRequest() {}, onExternal() {} })
+    await again.load()
+    await again.save({ elements: data.elements, files: {} })
+    expect(JSON.parse(await readFile(join(dir, 'new.excalidraw'), 'utf8')).inheritedFrom).toBe('old')
+    again.close()
   })
 })

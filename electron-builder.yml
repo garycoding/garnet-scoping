@@ -1,5 +1,5 @@
 # electron-builder: packages the electron-vite build (out/) into a macOS .dmg
-# (the app is macOS only for now). Run after `npm run build`. The build signs
+# and, for Ubuntu, an AppImage and a .deb. Run after `npm run build`. The build signs
 # and notarizes when the Apple secrets are set, else it is unsigned (see the
 # handbook's electron-tooling.md).
 appId: ai.parkviewlab.garnet-scoping
@@ -25,6 +25,27 @@ mac:
   category: public.app-category.developer-tools
   target: dmg
   hardenedRuntime: true
+linux:
+  target:
+    - AppImage
+    - deb
+  category: Development
+  maintainer: Gary Frattarola <garyf@parkviewlab.ai>
+  synopsis: A desk for each Claude Code session, beside a shared board
+# electron-builder's default dependencies, with the sound library Electron
+# loads at start (libasound2t64 on Ubuntu 24.04, libasound2 before it).
+deb:
+  depends:
+    - libgtk-3-0
+    - libnotify4
+    - libnss3
+    - libxss1
+    - libxtst6
+    - xdg-utils
+    - libatspi2.0-0
+    - libuuid1
+    - libsecret-1-0
+    - libasound2t64 | libasound2
 npmRebuild: false
 # Ship the generated license/notice bundle (run `npm run legal` first; CI does
 # this before packaging). See electron-tooling.md, "License notices + in-app

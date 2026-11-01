@@ -21,6 +21,13 @@ describe('the channel’s signals', () => {
     const b = signalEvents({ hold: 'holding', discuss: [open] }, { hold: 'off', discuss: [{ ...open, status: 'answered' }] })
     expect(b.map((e) => e.meta.signal)).toEqual(['release'])
   })
+
+  it('gives every meta value as a string, which Claude Code requires', () => {
+    const open = { id: 7, panel: 'now', text: 'x', status: 'open', at: 1792543000000 }
+    const evs = signalEvents(null, { review: true, reviewAt: 1792543000000, discuss: [open], hold: 'requested', holdAt: 1792543000001 })
+    for (const e of evs) for (const v of Object.values(e.meta)) expect(typeof v).toBe('string')
+    expect(evs[0].meta.at).toBe('1792543000000')
+  })
 })
 
 describe('the channel server', () => {

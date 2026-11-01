@@ -9,19 +9,21 @@
 import { app, BrowserWindow, ipcMain, session, shell, Menu } from 'electron'
 import { join, resolve, sep, isAbsolute } from 'node:path'
 import { homedir } from 'node:os'
-import { watch } from 'node:fs'
-import { readFile } from 'node:fs/promises'
+import { watch, existsSync } from 'node:fs'
+import { readFile, stat } from 'node:fs/promises'
 import { listSessions } from './transcript/sessions.js'
 import { listMemory } from './transcript/memory.js'
 import { follow } from './follower.js'
-import { openBoard } from './board.js'
+import { openBoard, inheritBoard } from './board.js'
 import { openAboutWindow, openLicensesWindow } from './about.js'
 import { loadSettings, saveSettings, clean } from './settings.js'
-import { openSetupInfo } from './setupInfo.js'
+import { openSetupInfo, installChannel } from './setupInfo.js'
 
 const CLAUDE = join(homedir(), '.claude')
 const PROJECTS = join(CLAUDE, 'projects')
 const PUSH_MS = 400
+// Files the preview shows as text.
+const TEXT_FILE = /\.(md|markdown|txt|text|log|json|csv|tsv|ya?ml|toml|ini|xml|html?|css|js|mjs|cjs|ts|tsx|jsx|py|rb|rs|go|java|kt|swift|c|h|cpp|sh|zsh|sql)$/i
 
 let listWindow = null
 let settingsWindow = null
@@ -41,7 +43,8 @@ function load(win, page, query) {
   else win.loadFile(target.file, { query: target.query })
 }
 
-const webPreferences = () => ({ preload: join(__dirname, '../preload/index.js'), contextIsolation: true, sandbox: true })
+// plugins: Chromium's own PDF viewer, for previews of delivered PDFs.
+const webPreferences = () => ({ preload: join(__dirname, '../preload/index.js'), contextIsolation: true, sandbox: true, plugins: true })
 
 function createListWindow() {
   if (listWindow && !listWindow.isDestroyed()) return listWindow.focus()
@@ -65,14 +68,24 @@ function openSession(info) {
   }
   const follower = follow(info.id, info.file, push)
   const send = (channel, payload) => !win.isDestroyed() && win.webContents.send(channel, payload)
-  const board = openBoard(info.id, {
-    title: info.title,
-    onRequest: (r) => send('board:request', r),
-    onExternal: (elements) => send('board:external', elements),
-    onPending: () => send('board:pending'),
-    onState: (state) => send('board:state', state),
-  })
-  windows.set(info.id, { win, follower, board, project: info.project, file: info.file })
+  const entry = { win, follower, board: null, project: info.project, file: info.file }
+  // A session that continues an earlier one takes over its board first
+  // (inheritBoard); the board is opened once that is settled.
+  entry.boardReady = follower.ready
+    .then(() => inheritBoard(info.id, follower.view().lineage))
+    .catch(() => null)
+    .then(() => {
+      entry.board = openBoard(info.id, {
+        title: info.title,
+        onRequest: (r) => send('board:request', r),
+        onExternal: (elements) => send('board:external', elements),
+        onPending: () => send('board:pending'),
+        onState: (state) => send('board:state', state),
+      })
+      if (win.isDestroyed()) entry.board.close()
+      return entry.board
+    })
+  windows.set(info.id, entry)
   load(win, 'session', { id: info.id })
   // A link in rendered text opens in the system's browser; the window itself
   // never navigates away from the app's page.
@@ -83,7 +96,7 @@ function openSession(info) {
     openLink(url)
   })
   win.on('closed', () => {
-    board.close()
+    entry.board?.close()
     follower.close()
     windows.delete(info.id)
   })
@@ -119,7 +132,11 @@ function registerIpc() {
     const w = entryOf(e)
     if (!w) return null
     await w.follower.ready
-    return { ...w.follower.view(), project: w.project }
+    const v = w.follower.view()
+    // Each delivered file, with whether it still exists (scratch folders are
+    // cleared in time).
+    const deliveries = (v.deliveries ?? []).map((d) => ({ ...d, files: d.files.map((p) => ({ path: p, exists: existsSync(p) })) }))
+    return { ...v, deliveries, project: w.project }
   })
   ipcMain.handle('session:detail', (e, actionId) => entryOf(e)?.follower.detail(actionId) ?? null)
   ipcMain.handle('memory:list', (e) => {
@@ -133,17 +150,36 @@ function registerIpc() {
   })
   ipcMain.handle('board:open', async (e) => {
     const w = entryOf(e)
-    return w ? { paths: w.board.paths, scene: await w.board.load(), state: await w.board.state() } : null
+    if (!w) return null
+    const board = await w.boardReady
+    const scene = await board.load()
+    return { paths: board.paths, scene, state: await board.state(), inheritedFrom: scene?.inheritedFrom ?? null }
   })
   // The window may ask for a hold or release one; only the agent confirms it.
   ipcMain.handle('board:set-state', (e, next) => {
     const { hold, ...rest } = next ?? {}
-    return entryOf(e)?.board.setState(hold === 'requested' || hold === 'off' ? { ...rest, hold } : rest)
+    return entryOf(e)?.boardReady.then((b) => b.setState(hold === 'requested' || hold === 'off' ? { ...rest, hold } : rest))
   })
-  ipcMain.handle('session:discuss', (e, op) => entryOf(e)?.board.discuss(op))
-  ipcMain.handle('board:save', (e, scene) => entryOf(e)?.board.save(scene))
-  ipcMain.handle('board:ready', (e) => entryOf(e)?.board.ready())
-  // Shows a folder or file in the Finder (S7); only absolute paths.
+  ipcMain.handle('session:discuss', (e, op) => entryOf(e)?.boardReady.then((b) => b.discuss(op)))
+  ipcMain.handle('board:save', (e, scene) => entryOf(e)?.boardReady.then((b) => b.save(scene)))
+  ipcMain.handle('board:ready', (e) => entryOf(e)?.boardReady.then((b) => b.ready()))
+  // Files the agent delivered in this session: opened with their default
+  // app, or read for the in-app preview. Only delivered files are served.
+  const delivered = (e, p) => {
+    const w = entryOf(e)
+    return Boolean(w && typeof p === 'string' && (w.follower.view().deliveries ?? []).some((d) => d.files.includes(p)))
+  }
+  ipcMain.handle('file:open', (e, p) => {
+    if (delivered(e, p)) shell.openPath(p)
+  })
+  ipcMain.handle('file:read', async (e, p) => {
+    if (!delivered(e, p)) return null
+    const info = await stat(p).catch(() => null)
+    if (!info) return { kind: 'gone' }
+    if (TEXT_FILE.test(p) && info.size <= 1024 * 1024) return { kind: 'text', text: await readFile(p, 'utf8'), size: info.size }
+    return { kind: 'other', size: info.size }
+  })
+  // Shows a folder or file in the system's file manager (S7); only absolute paths.
   ipcMain.handle('finder:show', (_e, p) => {
     if (typeof p === 'string' && isAbsolute(p)) shell.showItemInFolder(p)
   })
@@ -189,7 +225,8 @@ function buildMenu() {
             },
           ]
         : []),
-      { label: 'File', submenu: [{ label: 'Sessions', accelerator: 'CmdOrCtrl+L', click: () => createListWindow() }, { type: 'separator' }, { role: 'close' }] },
+      // Without macOS's app menu, Settings is in the File menu.
+      { label: 'File', submenu: [{ label: 'Sessions', accelerator: 'CmdOrCtrl+L', click: () => createListWindow() }, ...(isMac ? [] : [prefs]), { type: 'separator' }, isMac ? { role: 'close' } : { role: 'quit' }] },
       { role: 'editMenu' },
       { label: 'View', submenu: [{ role: 'reload' }, { role: 'toggleDevTools' }, { type: 'separator' }, { role: 'resetZoom' }, { role: 'zoomIn' }, { role: 'zoomOut' }] },
       { role: 'windowMenu' },
@@ -201,6 +238,7 @@ function buildMenu() {
 app.whenReady().then(() => {
   settingsFile = join(app.getPath('userData'), 'settings.json')
   settings = loadSettings(settingsFile)
+  installChannel().catch(() => {})
   refuseNetwork()
   registerIpc()
   buildMenu()

@@ -7,7 +7,7 @@
 // for a review). The window edits the board; this module saves it atomically,
 // keeps the rendition current, and passes on requests and outside changes.
 
-import { mkdir, readFile, writeFile, rename, unlink } from 'node:fs/promises'
+import { mkdir, readFile, writeFile, rename, unlink, stat, access, cp } from 'node:fs/promises'
 import { watch } from 'node:fs'
 import { join } from 'node:path'
 import { homedir } from 'node:os'
@@ -25,7 +25,27 @@ export const boardPaths = (id, dir = BOARDS) => ({
   rendition: join(dir, `${id}.board.md`),
   request: join(dir, `${id}.request.json`),
   state: join(dir, `${id}.state.json`),
+  files: join(dir, `${id}.files`),
 })
+
+// Images on the board (R7.8): kept in the board file, as the editor needs,
+// and also written out one file each, so that the agent can open them.
+const IMAGE_TYPES = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', svg: 'image/svg+xml' }
+const EXTENSIONS = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/gif': 'gif', 'image/webp': 'webp', 'image/svg+xml': 'svg' }
+const MAX_IMAGE_BYTES = 20 * 1024 * 1024
+const safeId = (s) => String(s).replace(/[^A-Za-z0-9_-]/g, '_')
+export const imageFile = (filesDir, fileId, mimeType) => join(filesDir, `${safeId(fileId)}.${EXTENSIONS[mimeType] ?? 'bin'}`)
+
+// Reads an image the agent names in a request, as a data URL.
+export async function readImage(path) {
+  const ext = String(path).split('.').pop().toLowerCase()
+  const mimeType = IMAGE_TYPES[ext]
+  if (!mimeType) throw new Error(`not an image this board takes (png, jpg, gif, webp or svg): ${path}`)
+  const info = await stat(path)
+  if (info.size > MAX_IMAGE_BYTES) throw new Error(`image larger than 20 MB: ${path}`)
+  const data = await readFile(path)
+  return { mimeType, dataURL: `data:${mimeType};base64,${data.toString('base64')}` }
+}
 
 // The person's signals to the agent: editing and a review asked for (R7.6),
 // the rows of the Desk they want to discuss (R2.7), and a hold (R2.8): the
@@ -33,11 +53,14 @@ export const boardPaths = (id, dir = BOARDS) => ({
 // agent confirms it has stopped ("holding"), and the person releases it.
 export const NO_STATE = { editing: false, review: false, reviewAt: null, discuss: [], hold: 'off', holdAt: null }
 const HOLDS = new Set(['off', 'requested', 'holding'])
-const PANELS = new Set(['plan', 'now', 'trail', 'memory'])
+const PANELS = new Set(['plan', 'now', 'trail', 'memory', 'foryou'])
 const str = (v, max = 2000) => (typeof v === 'string' ? v.slice(0, max) : null)
 function cleanMark(m) {
   if (!m || typeof m.id !== 'string' || !PANELS.has(m.panel) || typeof m.key !== 'string') return null
-  const answered = m.status === 'answered'
+  // open: a request to discuss; off: turned off by the person, kept so it
+  // can be turned on again; answered: the agent has answered it.
+  const status = ['open', 'off', 'answered'].includes(m.status) ? m.status : 'open'
+  const answered = status === 'answered' || (status === 'off' && typeof m.answer === 'string')
   return {
     id: m.id.slice(0, 40),
     panel: m.panel,
@@ -45,7 +68,7 @@ function cleanMark(m) {
     text: str(m.text) ?? '',
     note: str(m.note),
     at: str(m.at, 40),
-    status: answered ? 'answered' : 'open',
+    status,
     answer: answered ? str(m.answer) : null,
     answeredAt: answered ? str(m.answeredAt, 40) : null,
   }
@@ -68,13 +91,13 @@ const hash = (s) => createHash('sha1').update(s).digest('hex')
 
 async function writeAtomic(path, text) {
   const tmp = `${path}.${process.pid}.tmp`
-  await writeFile(tmp, text, 'utf8')
+  await writeFile(tmp, text, typeof text === 'string' ? 'utf8' : undefined)
   await rename(tmp, path)
 }
 
 // The board as text (R7.3): each shape with its id, kind, text and position,
 // each connection as "A → B", and free text, preceded by how to change it.
-export function rendition(elements, { title = null, requestPath = '', statePath = '', state = NO_STATE } = {}) {
+export function rendition(elements, { title = null, requestPath = '', statePath = '', state = NO_STATE, imagePath = null } = {}) {
   const live = elements.filter((e) => !e.isDeleted)
   const byId = new Map(live.map((e) => [e.id, e]))
   const textOf = (e) => {
@@ -108,7 +131,8 @@ export function rendition(elements, { title = null, requestPath = '', statePath 
     'This file is written by garnet-scoping whenever the board changes; do not edit it.',
     `To change the board, write a request to ${requestPath || '<id>.request.json'} as JSON:`,
     '{ "add": [ { "id": "a", "kind": "rectangle|ellipse|diamond|text", "text": "…", "x": 0, "y": 0 },',
-    '           { "kind": "arrow|line", "from": "a", "to": "b", "text": "optional label" } ],',
+    '           { "kind": "arrow|line", "from": "a", "to": "b", "text": "optional label" },',
+    '           { "id": "i", "kind": "image", "path": "/absolute/path.png", "x": 0, "y": 0, "width": 400 } ],',
     '  "relabel": [ { "id": "a", "text": "…" } ], "remove": [ "id" ], "reviewed": true }',
     'Positions are optional; shapes without one are placed to the right of the board. The app applies the request and deletes the file.',
     'When a review is requested and you have read the board, include "reviewed": true (alone, or with changes): it turns the Review button off.',
@@ -135,7 +159,12 @@ export function rendition(elements, { title = null, requestPath = '', statePath 
     lines.push('', '## Free text')
     for (const e of free) lines.push(`- [${e.id}] "${(e.originalText ?? e.text).replace(/\n/g, ' ')}" at (${Math.round(e.x)}, ${Math.round(e.y)})`)
   }
-  const other = live.filter((e) => !SHAPES.has(e.type) && e.type !== 'text' && e.type !== 'arrow' && e.type !== 'line')
+  const images = live.filter((e) => e.type === 'image')
+  if (images.length) {
+    lines.push('', '## Images')
+    for (const e of images) lines.push(`- [${e.id}] image at ${pos(e)}${imagePath && e.fileId ? `: ${imagePath(e.fileId)}` : ''}`)
+  }
+  const other = live.filter((e) => !SHAPES.has(e.type) && e.type !== 'text' && e.type !== 'arrow' && e.type !== 'line' && e.type !== 'image')
   if (other.length) lines.push('', `## Other`, `- ${other.length} element(s) of other kinds (${[...new Set(other.map((e) => e.type))].join(', ')}), not described here.`)
   return lines.join('\n') + '\n'
 }
@@ -151,12 +180,55 @@ export function mergeElements(current, incoming) {
   return [...out.values()]
 }
 
+// A session that continues an earlier one (resumed or forked under a new
+// id) takes over that session's board once, by copy: its drawing and images,
+// and the Discuss marks already settled (turned off or answered). Signals
+// still open stay with the session they were given to. The first earlier
+// session, most recent first, that has a drawing is the one used. Returns
+// its id, or null when nothing was inherited (or it had been already).
+export async function inheritBoard(id, ancestors, dir = BOARDS) {
+  const p = boardPaths(id, dir)
+  const readJson = async (f) => {
+    try {
+      return JSON.parse(await readFile(f, 'utf8'))
+    } catch {
+      return null
+    }
+  }
+  const own = await readJson(p.board)
+  if (own?.inheritedFrom !== undefined) return null
+  const live = (els) => (Array.isArray(els) ? els.filter((e) => !e.isDeleted) : [])
+  for (const anc of ancestors ?? []) {
+    const ap = boardPaths(anc, dir)
+    const theirs = await readJson(ap.board)
+    if (!live(theirs?.elements).length) continue
+    const elements = mergeElements(own?.elements ?? [], theirs.elements)
+    const files = { ...(theirs.files ?? {}), ...(own?.files ?? {}) }
+    const data = { ...(theirs ?? {}), ...(own ?? {}), elements, files, inheritedFrom: anc, source: 'garnet-scoping', style: 'plain' }
+    await mkdir(dir, { recursive: true })
+    await writeAtomic(p.board, JSON.stringify(data, null, 2))
+    await cp(ap.files, p.files, { recursive: true, force: false, errorOnExist: false }).catch(() => {})
+    const ownState = cleanState(await readJson(p.state))
+    const settled = cleanState(await readJson(ap.state)).discuss.filter((m) => m.status !== 'open' && !ownState.discuss.some((o) => o.id === m.id))
+    const state = { ...ownState, discuss: [...settled, ...ownState.discuss] }
+    if (settled.length) await writeAtomic(p.state, JSON.stringify(state, null, 2))
+    // The rendition at once, so that the agent can read the board it now has.
+    const types = new Map(Object.values(files).map((f) => [f.id, f.mimeType]))
+    const imagePath = (fid) => (types.has(fid) ? imageFile(p.files, fid, types.get(fid)) : null)
+    await writeAtomic(p.rendition, rendition(elements, { requestPath: p.request, statePath: p.state, state, imagePath }))
+    return anc
+  }
+  return null
+}
+
 // One session's board: load, save, and watch for requests and outside edits.
 export function openBoard(id, { title = null, dir = BOARDS, onRequest, onExternal, onPending, onState }) {
   const p = boardPaths(id, dir)
   let lastWritten = null
   // The elements the rendition was last written from, and the board's state.
   let lastElements = null
+  // The earlier session this board was continued from, kept across saves.
+  let inheritedFrom = null
   let state = { ...NO_STATE }
   const stateLoaded = readFile(p.state, 'utf8').then(
     (t) => {
@@ -177,15 +249,21 @@ export function openBoard(id, { title = null, dir = BOARDS, onRequest, onExterna
       lastWritten = hash(text)
       const data = JSON.parse(text)
       if (Array.isArray(data.elements)) lastElements = data.elements
+      inheritedFrom = data.inheritedFrom ?? null
+      fileTypes = new Map(Object.values(data.files ?? {}).map((f) => [f.id, f.mimeType]))
       return data
     } catch {
       return null
     }
   }
 
+  // The files of the images on the board, by file id.
+  let fileTypes = new Map()
+  const imagePath = (fileId) => (fileTypes.has(fileId) ? imageFile(p.files, fileId, fileTypes.get(fileId)) : null)
+
   async function writeRendition() {
     if (!lastElements) await load()
-    await writeAtomic(p.rendition, rendition(lastElements ?? [], { title, requestPath: p.request, statePath: p.state, state }))
+    await writeAtomic(p.rendition, rendition(lastElements ?? [], { title, requestPath: p.request, statePath: p.state, state, imagePath }))
   }
 
   // The window reports the person's signals; the agent's "reviewed" clears
@@ -209,12 +287,25 @@ export function openBoard(id, { title = null, dir = BOARDS, onRequest, onExterna
 
   async function save(scene) {
     await mkdir(dir, { recursive: true })
-    const text = JSON.stringify({ type: 'excalidraw', version: 2, source: 'garnet-scoping', style: 'plain', elements: scene.elements, appState: { viewBackgroundColor: scene.background ?? '#0b1226' }, files: {} }, null, 2)
+    // Only the files of images still on the board are kept.
+    const used = new Set(scene.elements.filter((e) => e.type === 'image' && !e.isDeleted && e.fileId).map((e) => e.fileId))
+    const files = Object.fromEntries(Object.entries(scene.files ?? {}).filter(([fid, f]) => used.has(fid) && typeof f?.dataURL === 'string'))
+    const text = JSON.stringify({ type: 'excalidraw', version: 2, source: 'garnet-scoping', style: 'plain', ...(inheritedFrom ? { inheritedFrom } : {}), elements: scene.elements, appState: { viewBackgroundColor: scene.background ?? '#0b1226' }, files }, null, 2)
     lastWritten = hash(text)
     lastElements = scene.elements
     await writeAtomic(p.board, text)
+    fileTypes = new Map(Object.values(files).map((f) => [f.id, f.mimeType]))
+    for (const f of Object.values(files)) {
+      const out = imageFile(p.files, f.id, f.mimeType)
+      const exists = await access(out).then(() => true, () => false)
+      if (exists) continue
+      const m = /^data:[^;]+;base64,(.*)$/s.exec(f.dataURL)
+      if (!m) continue
+      await mkdir(p.files, { recursive: true })
+      await writeAtomic(out, Buffer.from(m[1], 'base64'))
+    }
     await stateLoaded
-    await writeAtomic(p.rendition, rendition(scene.elements, { title, requestPath: p.request, statePath: p.state, state }))
+    await writeAtomic(p.rendition, rendition(scene.elements, { title, requestPath: p.request, statePath: p.state, state, imagePath }))
   }
 
   // The person marks a row to discuss, withdraws a mark, or dismisses an
@@ -228,6 +319,10 @@ export function openBoard(id, { title = null, dir = BOARDS, onRequest, onExterna
       list.push({ ...op.mark, id: `d${Date.now().toString(36)}${Math.floor(Math.random() * 1296).toString(36)}`, at: now(), status: 'open' })
     } else if (op?.op === 'remove') {
       list = list.filter((m) => m.id !== op.id)
+    } else if (op?.op === 'toggle') {
+      // The flag: an open request is turned off; one turned off or answered
+      // is requested again.
+      list = list.map((m) => (m.id === op.id ? { ...m, status: m.status === 'open' ? 'off' : 'open', at: m.status === 'open' ? m.at : now() } : m))
     }
     return setState({ discuss: list })
   }
@@ -270,7 +365,20 @@ export function openBoard(id, { title = null, dir = BOARDS, onRequest, onExterna
         ...(holding ? { hold: 'holding' } : {}),
       })
     }
-    if (changes) onRequest({ request: req })
+    if (changes) {
+      // An image the agent adds by path is read here and passed on as data.
+      if (Array.isArray(req.add)) {
+        for (const a of req.add) {
+          if (a?.kind !== 'image') continue
+          try {
+            Object.assign(a, await readImage(String(a.path ?? '')))
+          } catch (err) {
+            a.error = err.message
+          }
+        }
+      }
+      onRequest({ request: req })
+    }
   }
 
   async function checkBoard() {

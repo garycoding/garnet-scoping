@@ -131,6 +131,28 @@ describe('the session model', () => {
     expect(s.turns[0].items.at(-1)).toMatchObject({ type: 'notification', text: 'Waited', status: 'completed' })
   })
 
+  it('reads the earlier sessions a resumed or forked session continues', () => {
+    const s = createSession('new')
+    const recs = [F.human('first'), F.assistant([F.text('one')]), F.human('second'), F.assistant([F.text('two')])]
+    s.apply({ ...recs[0], sessionId: 'root' })
+    s.apply({ ...recs[1], sessionId: 'root' })
+    s.apply({ ...recs[2], sessionId: 'middle' })
+    s.apply({ ...recs[3], sessionId: 'new' })
+    expect(s.state.lineage).toEqual(['root', 'middle'])
+  })
+
+  it('keeps the files the agent sent the person, newest first', () => {
+    const s = build([
+      F.human('make me an icon'),
+      F.assistant([F.tool('a', 'SendUserFile', { files: ['/tmp/one.png'], caption: 'First' })]),
+      F.assistant([F.tool('b', 'SendUserFile', { files: ['out/two.png', '/tmp/three.pdf'] })]),
+    ])
+    expect(s.deliveries.map((d) => [d.caption, d.files])).toEqual([
+      [null, ['/work/demo/out/two.png', '/tmp/three.pdf']],
+      ['First', ['/tmp/one.png']],
+    ])
+  })
+
   it('checks off the app\'s task list at wrap-up', () => {
     const s = build([
       F.human('do three things'),

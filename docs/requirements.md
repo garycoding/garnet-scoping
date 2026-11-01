@@ -20,12 +20,12 @@ These were ruled before this document was written.
 - D1. garnet-scoping is a desktop application, separate from the agent and from any editor. It lists sessions, and for any session opens a Desk in its own window.
 - D2. A Desk shows the session's present state, with the session's trail beneath it (R2, R3).
 - D3. A Desk has a Memory pane (R4).
-- D4. The first version runs on macOS only.
+- D4. The app runs on macOS and on Ubuntu (the first versions ran on macOS only).
 - D5. The repository is public, under the garycoding account, and the code is licensed under AGPL-3.0-or-later.
 - D6. The app is named garnet-scoping; "Desk" names a part of its window (since D9, one of the window's panels), not the app.
 - D7. Changes to the details are expected to follow from use: the first version is the starting point, not a fixed design.
 - D8. Each session has one window, holding its Desk and its board (R7); the board is a shared whiteboard of shapes with text, lines and arrows.
-- D9. The window's four panels, Desk (the present state), Trail, Memory and Board, are each turned on and off. When the board is shown beside other panels it takes half the window, on the side (left, right, top or bottom) set in Settings; the other panels share the remaining half.
+- D9. The window's panels, Desk (the present state), Trail, Memory, Discuss (R2.7) and Board, are each turned on and off. When the board is shown beside other panels it takes half the window, on the side (left, right, top or bottom) set in Settings; the other panels share the remaining half.
 
 ## Settled under the go-ahead
 
@@ -37,7 +37,7 @@ These were proposed and then settled under the instruction to proceed as recomme
 - S4. The name and icon are reserved as the project's unregistered marks (P4).
 - S5. Subagents' and background agents' own transcripts are left out of the first version (Q1).
 - S6. Messages the person sends while the agent is working appear in the trail where they arrived, marked as sent mid-turn (Q2).
-- S7. A Desk can show the session's working folder, and any touched file, in the Finder (Q3).
+- S7. A Desk can show the session's working folder, and any touched file, in the system's file manager (the Finder on macOS) (Q3).
 - S8. Finished sessions stay listed; nothing is hidden by age (Q4).
 
 ## Requirements
@@ -66,9 +66,11 @@ R2.5. **Touched this turn:** the files read and written, and the memory notes re
 
 R2.6. **Session facts:** the model and effort, the working folder and branch, linked pull requests, and how much of the context budget is left, where the transcript records them.
 
-R2.7. **Discuss:** the person can mark any row of Plan, Now, Trail or Memory to discuss with the agent: a double-click marks the row (or withdraws an open mark); the right-click menu marks it without a note or with one, or withdraws it. Marks are kept in the session's state file beside its board, shown on their rows and in a "To discuss" strip until withdrawn or dismissed, and stated at the head of the board's rendition. The agent answers in the conversation and records a one-line answer with its request (`"discussed"`), which the Desk shows on the row and in the strip.
+R2.7. **Discuss:** the person can mark any row of Plan, Now, Trail, Memory or For you to discuss with the agent: the right-click menu marks it without a note or with one; a double-click marks it too. A marked row shows a badge reading "Discuss" at its right-hand end, before its time where it has one, so that rows still start alike (on a For-you file, on the tile's top-left corner): filled while it is a request to discuss, outlined once turned off or answered. A click on the badge turns the request off, and the badge stays so that a further click requests it again. Marks are kept in the session's state file beside its board and counted at the head of the board's rendition. They are listed, open ones first, in a Discuss panel (a fifth panel toggle) and in the drop-down of a Discuss button in the header, which shows the number of open requests. Choosing an entry shows its item where it is: its panel is turned on, a Trail turn opened, an action no longer in Now found in the Trail, and the item scrolled into view with a yellow highlight that fades over two seconds. The agent answers in the conversation and records a one-line answer with its request (`"discussed"`), which the Desk shows under the row.
 
 R2.8. **Hold:** a button on the window's header lets the person ask the agent to stop after its current step. The request shows as "Hold requested"; the agent finishes the step it is in, starts no other, and confirms with `"holding": true` in a request, after which the button shows "Holding"; the person releases the hold with the same button. Nothing the agent is running is cancelled. The hold is kept in the session's state file and stated at the head of the board's rendition; only the agent can confirm a hold, and only the person can request or release one.
+
+R2.9. **For you:** the files the agent has sent the person in this session (the desktop app's file cards), newest first, each with its caption and time and a thumbnail for an image. A click previews the file in an overlay over the Desk (an image large, a PDF in Chromium's viewer, Markdown rendered, text and code as text, anything else by name and size), with buttons to open it in its default app, show it in the Finder, or discuss it. The right-click menu offers Discuss, Discuss with a note, Open in its default app and Show in the Finder, and a double-click marks it to discuss, as on every row (R2.7). A file no longer on disk is shown as gone; a file overwritten since it was sent shows its present content.
 
 ### R3. The trail
 
@@ -108,7 +110,7 @@ R6.3. What the Desk shows can be traced to the records it was derived from, so t
 
 ### R7. The board
 
-R7.1. A session's window has a board beside its Desk: a whiteboard on which the person places shapes (rectangles, ellipses, diamonds), writes text in them, and joins them with lines and arrows. Freehand drawing is not part of the board.
+R7.1. A session's window has a board beside its Desk: a whiteboard on which the person places shapes (rectangles, ellipses, diamonds), writes text in them, and joins them with lines and arrows. Freehand drawing is not part of the board. Images are (R7.8).
 
 R7.2. The board is kept in an Excalidraw file per session (Excalidraw's format and editor are MIT), in a folder of the app's own outside every repository and outside the Claude configuration directory, at a path without spaces derived from the session's id. The window shows the path and copies it, so that the agent can be told where the board is.
 
@@ -120,7 +122,11 @@ R7.5. The person's edits and the agent's requests merge by element, so that neit
 
 R7.6. The board carries two signals from the person to the agent. **Editing** is a checkbox that any change the person makes to the board checks, and that the person unchecks when done, so the agent knows whether the board is still being changed. **Review** is a toggle the person turns on to ask the agent to read the board now, which also unchecks Editing; the agent turns it off, with its request, once it has read the board. Both are off by default, kept on disk beside the board, and stated at the head of the rendition.
 
-R7.7. The person's signals (Review, Discuss, Hold) reach the agent without a message from the person. Two routes are provided. A **watcher**, a shell script the agent runs in the background in every session, started by a SessionStart hook and governed by a rule in the person's `~/.claude/CLAUDE.md`, exits when a signal appears. A **channel**, an MCP server shipped in the app and run by Claude Code over stdio with the app's own binary, pushes each signal into the session the moment it appears; Claude Code loads channels only in terminal sessions started with it, as a research preview, so the watcher remains for the desktop app until that changes. The app's **Set-up Info** window gives the person copyable text that has Claude install the watcher, the hook and the rule, and the command that starts a terminal session with the channel. The channel uses Node's standard library only and opens no network connection.
+R7.7. The person's signals (Review, Discuss, Hold) reach the agent without a message from the person. Two routes are provided. A **watcher**, a shell script that Claude Code itself runs in every session as an `asyncRewake` hook, at the end of each turn and when a session is resumed, exits when a new signal appears and so wakes the session at once, with a description of the new signal; a rule in the person's `~/.claude/CLAUDE.md` says how to answer. One watcher runs per session; it never depends on the agent remembering to start it, and, being a hook rather than a background command, it does not make the desktop app report the session as working. It never runs at a new session's start: Claude Code waits for a SessionStart hook to finish before the session answers, whether or not it is `asyncRewake`, so a watcher there holds the session until a signal arrives; a new session is therefore watched from the end of its first turn, and the watcher script itself exits at once if it is started there. A **channel**, an MCP server shipped in the app and run by Claude Code over stdio with the app's own binary, pushes each signal into the session the moment it appears; Claude Code loads channels only in terminal sessions started with it, as a research preview, so the watcher remains for the desktop app until that changes. The app's **Set-up Info** window gives the person copyable text that has Claude install the watcher, the hook and the rule, and the command that starts a terminal session with the channel. The channel uses Node's standard library only and opens no network connection.
+
+R7.8. The board takes images: the person drops or pastes one, or places it with the image tool; the agent adds one by naming an image file in a request (`{"kind": "image", "path": "…"}`), scaled to at most 480 points on its longer side unless a width is given. Each image is kept in the board file, as the editor needs, and written once as its own file in a folder beside the board (`<session>.files/`), so that the agent can open it; the rendition lists each image with its position, size and file. PNG, JPEG, GIF, WebP and SVG are taken, up to 20 MB each.
+
+R7.9. A session that continues an earlier one under a new id (resumed or forked: its transcript begins with the earlier records, which keep their own session id) takes over the earlier session's board when its window first opens, by copy: the drawing and its images, merged with any shapes the new board already has, and the Discuss marks already turned off or answered. Signals still open stay with the session they were given to, and the earlier board is left unchanged. This happens once; the board file records the session it was continued from, and the board's header says so.
 
 ## Proposed and settled
 

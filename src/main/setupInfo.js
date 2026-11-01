@@ -9,6 +9,17 @@
 import { app, BrowserWindow, shell } from 'electron'
 import { join } from 'node:path'
 import { homedir } from 'node:os'
+import { mkdir, cp } from 'node:fs/promises'
+
+// The channel's scripts are copied to the app's own folder at start, so that
+// Claude Code finds them at one path whatever the install: an AppImage runs
+// from a mount whose path changes on every launch.
+export const CHANNEL_DIR = join(homedir(), '.garnet-scoping', 'channel')
+export async function installChannel() {
+  const from = join(app.isPackaged ? process.resourcesPath : join(__dirname, '../..'), 'channel')
+  await mkdir(CHANNEL_DIR, { recursive: true })
+  await cp(from, CHANNEL_DIR, { recursive: true, force: true })
+}
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
 
@@ -19,18 +30,26 @@ const resources = () => (app.isPackaged ? process.resourcesPath : join(__dirname
 export function setupTexts() {
   const res = resources()
   const setup = join(res, 'setup')
-  const binary = app.isPackaged ? process.execPath : '/Applications/garnet-scoping.app/Contents/MacOS/garnet-scoping'
-  const channelScript = app.isPackaged ? join(res, 'channel', 'garnet-channel.mjs') : '/Applications/garnet-scoping.app/Contents/Resources/channel/garnet-channel.mjs'
+  // The binary that runs the channel: the AppImage itself when the app runs
+  // from one; otherwise the app's executable (in development, where the
+  // installed app would be: the macOS bundle, or the Ubuntu package under /opt).
+  const installed = process.platform === 'darwin' ? '/Applications/garnet-scoping.app/Contents/MacOS/garnet-scoping' : '/opt/garnet-scoping/garnet-scoping'
+  const binary = process.env.APPIMAGE || (app.isPackaged ? process.execPath : installed)
+  const channelScript = join(CHANNEL_DIR, 'garnet-channel.mjs')
   const mcpPath = join(homedir(), '.garnet-scoping', 'channel.mcp.json')
   const mcp = JSON.stringify({ mcpServers: { garnet: { command: binary, args: [channelScript], env: { ELECTRON_RUN_AS_NODE: '1' } } } }, null, 2)
   const prompt = `Please set up garnet-scoping for all my Claude Code sessions. Read each file before installing it.
 
-1. Copy ${join(setup, 'garnet-watch.sh')} and ${join(setup, 'garnet-session-start.sh')} into ~/.claude/hooks/ and make them executable.
-2. In ~/.claude/settings.json, add a SessionStart hook with the matcher "startup|resume" whose command is: bash ~/.claude/hooks/garnet-session-start.sh. Keep every hook already there.
+1. Copy ${join(setup, 'garnet-watch.sh')}, ${join(setup, 'garnet-rewake.sh')} and ${join(setup, 'garnet-session-start.sh')} into ~/.claude/hooks/ and make them executable.
+2. In ~/.claude/settings.json, keeping every other hook already there but replacing any earlier garnet hook, add three command hooks:
+   - SessionStart, matcher "startup|resume": bash ~/.claude/hooks/garnet-session-start.sh
+   - SessionStart, matcher "resume" (not "startup"): bash ~/.claude/hooks/garnet-rewake.sh, with "asyncRewake": true and "timeout": 86400
+   - Stop: bash ~/.claude/hooks/garnet-rewake.sh, with "asyncRewake": true and "timeout": 86400
+   The last two make Claude Code itself run the watcher, at the end of every turn and when a session is resumed, and wake the session when a signal arrives. Never run garnet-rewake.sh at "startup": at a new session's start Claude Code waits for SessionStart hooks to finish, asyncRewake or not, and the session would not start.
 3. Append the section in ${join(setup, 'claude-md-section.md')} to ~/.claude/CLAUDE.md, unless a section "garnet-scoping signals" is already there.
 4. Write ${mcpPath} with this content, for the channel (used only by terminal sessions started with it):
 ${mcp}
-5. Start the watcher in this session now: run bash ~/.claude/hooks/garnet-watch.sh in the background.`
+Nothing needs starting by hand: from the end of this turn on, Claude Code runs the watcher in every session.`
   const command = `claude --mcp-config ${mcpPath} --dangerously-load-development-channels server:garnet`
   return { prompt, mcp, mcpPath, command }
 }

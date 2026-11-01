@@ -27,3 +27,26 @@ Shared context depends on a word meaning one thing to both parties. A glossary n
 Open questions: where the glossary lives (in the project's repository, in the agent's memory store, or both, one derived from the other); how a new term is proposed and ruled; whether the check against glossary meanings belongs in the Desk or in the agent's own instructions.
 
 Raised 2026-10-19.
+
+## Knowing when a Claude Code release breaks garnet-scoping
+
+garnet-scoping reads files that Claude Code writes for itself, not a published interface, and a new release may change them. The loud breaks are already caught: the reader counts record kinds it does not recognise, and the Desk says when a session runs a version newer than the newest the app was checked against. The dangerous breaks are the quiet ones, where everything still parses but means less: a renamed task-list tool leaves Plan empty; a moved field stops background tasks being matched to their completions, so Waiting fills with finished work; a changed notice format drops notices from the Trail. Outside the transcript the app also depends on `CLAUDE_CODE_SESSION_ID`, the SessionStart hook's output, and the channel protocol. Four measures, in the order they would be built:
+
+1. **A conformance check on real transcripts.** A script, run locally and never committed, reads every transcript on the machine and reports, per Claude Code version, what the reader found: plan updates, wrap-ups, background tasks started and finished, actions with and without results, mid-turn messages, notices, unknown kinds and unknown tool names. A new version whose counts fall to zero where earlier versions had many is a quiet break, found on the day the version first appears. When a version passes, it becomes the new "checked against" version.
+2. **A weekly watch of the changelog.** A scheduled task reads new Claude Code changelog entries and flags those that touch what garnet-scoping depends on: the transcript and its record kinds, the task-list and wrap-up tools, background tasks and their notices, memory, hooks, `CLAUDE_CODE_SESSION_ID`, MCP and channels. An early warning, before the break reaches a session.
+3. **A health line in the app.** When a session runs a version newer than the checked one, the Desk runs the conformance checks on that session and says specifically what looks wrong ("the task-list tool is used, but no plan was read"), rather than only "newer than checked".
+4. **Investigation of everything Claude Code writes.** Periodically, and after any release that changes what Claude Code stores, look through every file it writes (under `~/.claude`: transcripts and subagent transcripts, memory, task output, plans, scheduled tasks, settings and the rest; and the desktop app's own stores) to see what is new, what has changed, and what could serve garnet-scoping's intents. This is how the first design was found: a survey of every transcript on the machine showed what the Desk could be built from. Repeated, it finds both breaks the other measures miss and new material, such as a record of what the agent is waiting on from the person, which would make a new part of the Desk possible.
+
+Open questions: whether the conformance check runs on demand, weekly by scheduled task, or inside the app at each new version; what thresholds mark a fall as a break rather than a quiet week; how the investigation's findings are kept (a dated note per survey, in this repository without private content, or in the person's notes); which of the four to build first.
+
+Raised 2026-10-20.
+
+## Quote: selecting text on the Desk to send it to the agent
+
+Messaging apps let one highlight part of an earlier message and quote it in a new one, so the reply refers to exactly those words. The Desk could do the same: the person selects any passage of text on the Desk (part of the agent's message in Last word or the Trail, a few words of a plan step, a line of a command's output in the details view, a sentence of a memory note) and a small "Quote" control appears beside the selection. It sends the agent the exact words selected, where they came from (which message, which action, which note), and an optional note from the person, by the same route as a Discuss flag: the state file, the watcher or the channel, and the agent's answer recorded with its request. A whole-row flag stays for when the whole item is the subject; Quote is for when only part of it is.
+
+It is a finer form of signalling intent at the point of reading (northstar draft, intent 2): the reference is made exact by the selection itself, with no description of what is meant.
+
+Open questions: how a quote is shown on the Desk once sent (a flag on its row with the quoted words, or a mark on the words themselves); whether a quote must carry a note, since quoted words without a question say less than a flag; how a quote of text that later changes (a Last word replaced by a newer message) keeps pointing at what was quoted; whether quotes from the board's text belong here too.
+
+Raised 2026-10-20.

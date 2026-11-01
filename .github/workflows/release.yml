@@ -70,7 +70,7 @@ jobs:
             exit 1
           fi
 
-  # Installers, here for macOS alone (the app is macOS only for now). The
+  # Installers for macOS and Ubuntu, each built on its own system. The
   # part's contract is its artifacts: every leg uploads `installers-<os>`, and the
   # job that creates the GitHub Release attaches them to it. The steps below are
   # electron-builder's, the one installer build in use; another build may replace
@@ -81,7 +81,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest]
+        os: [macos-latest, ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v6
@@ -139,6 +139,8 @@ jobs:
           if-no-files-found: error
           path: |
             dist/*.dmg
+            dist/*.AppImage
+            dist/*.deb
 
   # Generate the Highlights paragraph + categorized list, commit the new
   # CHANGELOG.md section back to main, and create the GitHub Release. Runs

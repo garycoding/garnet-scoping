@@ -4,6 +4,130 @@ All notable changes to this project are recorded here.
 
 ## [Unreleased]
 
+## [v0.8.2] - 2026-10-20
+
+### Highlights
+
+_Highlights were not generated for this release._
+
+### Bug fixes
+
+- Give the channel's meta values as strings (#55)
+
+## [v0.8.1] - 2026-10-20
+
+### Highlights
+
+_Highlights were not generated for this release._
+
+### Bug fixes
+
+- Never run the watcher at a new session's start (#53)
+
+### Docs
+
+- The Ubuntu install command for 0.8.0 (#52)
+
+## [v0.8.0] - 2026-10-20
+
+### Highlights
+
+_Highlights were not generated for this release._
+
+### Features
+
+- Claude Code runs the watcher itself, as a rewake hook (#50)
+
+### Docs
+
+- The Ubuntu install command (#49)
+
+## [v0.7.0] - 2026-10-20
+
+### Highlights
+
+_Highlights were not generated for this release._
+
+### Features
+
+- Ubuntu, beside macOS (#47)
+
+## [v0.6.2] - 2026-10-20
+
+### Highlights
+
+_Highlights were not generated for this release._
+
+### Bug fixes
+
+- The jump highlight in yellow (#45)
+
+## [v0.6.1] - 2026-10-20
+
+### Highlights
+
+_Highlights were not generated for this release._
+
+### Bug fixes
+
+- A resumed or forked session takes over its board (#43)
+
+## [v0.6.0] - 2026-10-19
+
+### Highlights
+
+_Highlights were not generated for this release._
+
+### Features
+
+- A Discuss badge in place of the flag (#40)
+
+### Bug fixes
+
+- The watcher fires only on new signals (#41)
+
+### Docs
+
+- In-flight idea, Quote (#39)
+
+## [v0.5.0] - 2026-10-19
+
+### Highlights
+
+_Highlights were not generated for this release._
+
+### Features
+
+- Preview delivered files in the app, and discuss them (#35)
+- Discuss as a flag on each row (#36)
+- The list of requests to discuss, and the jump to each (#37)
+
+## [v0.4.1] - 2026-10-19
+
+### Highlights
+
+_Highlights were not generated for this release._
+
+### Features
+
+- For you, the files the agent sent the person (#32)
+
+## [v0.4.0] - 2026-10-19
+
+### Highlights
+
+_Highlights were not generated for this release._
+
+### Features
+
+- Fit, to zoom the board to its whole drawing (#28)
+- Images on the board (#30)
+- The microscope icon (#31)
+
+### Docs
+
+- In-flight idea on knowing when a Claude Code release breaks garnet-scoping (#29)
+
 ## [v0.3.0] - 2026-10-19
 
 ### Highlights
