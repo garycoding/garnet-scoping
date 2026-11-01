@@ -128,7 +128,12 @@ function classifyAttachment(r) {
     const m = /([\d,]+)\s+tokens left/.exec(a.text)
     return m ? { kind: 'budget', left: Number(m[1].replace(/,/g, '')) } : { kind: 'attachment' }
   }
-  if (a.type === 'model' && a.model) return { kind: 'model', model: a.model }
+  // The model in force: under identity.modelId in recent versions (seen from
+  // 2.1.304), as a plain model field before.
+  if (a.type === 'model') {
+    const model = a.identity?.modelId ?? a.model
+    if (model) return { kind: 'model', model }
+  }
   return { kind: 'attachment', type: a.type ?? null }
 }
 

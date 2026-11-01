@@ -27,7 +27,10 @@ pidfile="$dir/$id.watcher.pid"
 if [ -f "$pidfile" ] && kill -0 "$(cat "$pidfile")" 2>/dev/null; then exit 0; fi
 echo $$ > "$pidfile"
 trap 'rm -f "$pidfile"' EXIT
-out=$(bash "$HOME/.claude/hooks/garnet-watch.sh" "$id")
+# The watcher ends without a signal when Claude Code, this hook's parent, is
+# gone (killed outright, so that it could not end its hooks itself); then
+# there is no session to wake.
+out=$(GARNET_WATCH_OWNER=$PPID bash "$HOME/.claude/hooks/garnet-watch.sh" "$id") || exit 0
 {
   echo "garnet-scoping: the person signalled this session."
   echo "$out"
