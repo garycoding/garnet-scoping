@@ -46,9 +46,16 @@ signals() {
   fi
 }
 
+# The process whose end ends the watch, if given: the hook's Claude Code.
+owner="${GARNET_WATCH_OWNER:-}"
+
 date -u +"garnet-watch started %H:%M:%SZ for $id"
 last=""
 while true; do
+  if [ -n "$owner" ] && ! kill -0 "$owner" 2>/dev/null; then
+    date -u +"garnet-watch ended %H:%M:%SZ: its Claude Code has gone"
+    exit 3
+  fi
   m=$(mtime "$state")
   if [ -n "$m" ] && [ "$m" != "$last" ]; then
     last="$m"
