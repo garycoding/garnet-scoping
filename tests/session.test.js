@@ -30,6 +30,10 @@ describe('classify', () => {
     expect(classify(F.attachment({ type: 'session_context', context: { userEmail: 'x' } })).kind).toBe('hidden')
     expect(classify(F.attachment({ type: 'prompt_snapshot', systemPrompt: ['x'] })).kind).toBe('hidden')
   })
+  it('reads the model from a model record, old and new shape', () => {
+    expect(classify(F.attachment({ type: 'model', identity: { modelId: 'claude-opus-5-5', marketingName: 'Opus 5.5' }, text: 'x' }))).toMatchObject({ kind: 'model', model: 'claude-opus-5-5' })
+    expect(classify(F.attachment({ type: 'model', model: 'claude-sonnet-5-5' }))).toMatchObject({ kind: 'model', model: 'claude-sonnet-5-5' })
+  })
   it('counts an unknown record type instead of failing', () => {
     expect(classify(F.unknown('brand-new-kind'))).toMatchObject({ kind: 'unknown', type: 'brand-new-kind' })
   })
