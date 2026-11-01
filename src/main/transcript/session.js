@@ -10,7 +10,7 @@
 import { classify } from './records.js'
 
 // The Claude Code versions this reader was checked against (R6.2).
-export const CHECKED_VERSIONS = { lowest: '2.1.170', highest: '2.1.299' }
+export const CHECKED_VERSIONS = { lowest: '2.1.170', highest: '2.1.309' }
 
 // Kept per action so that its output can be shown on request (R5.2), without
 // holding very large outputs whole.
