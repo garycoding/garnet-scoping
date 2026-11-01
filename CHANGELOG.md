@@ -4,6 +4,20 @@ All notable changes to this project are recorded here.
 
 ## [Unreleased]
 
+## [v0.8.3] - 2026-11-01
+
+### Highlights
+
+_Highlights were not generated for this release._
+
+### Bug fixes
+
+- Claude Code 2.1.309 compatibility (#57)
+
+### Docs
+
+- The northstar (#27)
+
 ## [v0.8.2] - 2026-10-20
 
 ### Highlights
