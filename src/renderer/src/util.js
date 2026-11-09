@@ -30,3 +30,13 @@ export function since(when) {
 }
 
 export const shortPath = (p, home) => (home && p.startsWith(home) ? '~' + p.slice(home.length) : p)
+
+// A file:// address for a local path. encodeURI leaves "#" and "?" as they
+// are, and the browser would then read the rest of the name as a fragment or
+// a query, so those two are escaped as well.
+export const fileUrl = (path) => `file://${encodeURI(path).replace(/[?#]/g, encodeURIComponent)}`
+
+// A link or image reference in a Markdown file, as an address resolved from
+// the file's own folder, as a Markdown viewer resolves it. A reference that
+// names its own scheme (https:, data:) is left as it is.
+export const fromFile = (ref, filePath) => (/^[a-z][a-z0-9+.-]*:/i.test(ref) ? ref : new URL(ref, fileUrl(filePath)).href)

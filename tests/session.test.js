@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { describe, it, expect } from 'vitest'
 import { classify } from '../src/main/transcript/records.js'
-import { createSession, snapshot, isMemoryPath, compareVersions } from '../src/main/transcript/session.js'
+import { createSession, snapshot, isMemoryPath, compareVersions, deliveredPath } from '../src/main/transcript/session.js'
+import { homedir } from 'node:os'
 import * as F from './fixtures.js'
 
 const build = (records) => {
@@ -155,6 +156,14 @@ describe('the session model', () => {
       [null, ['/work/demo/out/two.png', '/tmp/three.pdf']],
       ['First', ['/tmp/one.png']],
     ])
+  })
+
+  it('gives each delivered file one path: ~, ./ and ../ resolved', () => {
+    expect(deliveredPath('./out/two.png', '/work/demo')).toBe('/work/demo/out/two.png')
+    expect(deliveredPath('../shared/a.pdf', '/work/demo')).toBe('/work/shared/a.pdf')
+    expect(deliveredPath('/tmp/x/../three.pdf', '/work/demo')).toBe('/tmp/three.pdf')
+    expect(deliveredPath('~/Desktop/c.png', '/work/demo')).toBe(`${homedir()}/Desktop/c.png`)
+    expect(deliveredPath('rel.png', null)).toBe('rel.png')
   })
 
   it('checks off the app\'s task list at wrap-up', () => {

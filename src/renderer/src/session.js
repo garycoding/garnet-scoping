@@ -7,7 +7,7 @@
 
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
-import { ago, clock, since } from './util.js'
+import { ago, clock, fileUrl, fromFile, since } from './util.js'
 
 const $ = (id) => document.getElementById(id)
 const el = (tag, cls, text) => {
@@ -25,9 +25,12 @@ const shortPath = (p) => {
   const home = /^(\/Users\/[^/]+|\/home\/[^/]+)/.exec(p)?.[1]
   return home ? '~' + p.slice(home.length) : p
 }
-const markdown = (text) => {
+// Markdown as HTML. For a file's own text, filePath makes its relative
+// images load from the file's folder rather than from the app's.
+const markdown = (text, filePath) => {
   const div = el('div', 'markdown')
   div.innerHTML = DOMPurify.sanitize(marked.parse(text ?? ''))
+  if (filePath) for (const img of div.querySelectorAll('img[src]')) img.src = fromFile(img.getAttribute('src'), filePath)
   return div
 }
 
@@ -311,7 +314,7 @@ function renderForYou() {
         tile.title = f.exists ? `${f.path}\nClick to preview; right-click for more.` : `${f.path}\nNo longer on disk.`
         if (f.exists && IMAGE.test(f.path)) {
           const img = el('img')
-          img.src = `file://${encodeURI(f.path)}`
+          img.src = fileUrl(f.path)
           img.alt = basename(f.path)
           tile.append(img)
         }
@@ -337,16 +340,16 @@ async function previewFile(path, row) {
   const body = el('div', 'preview')
   if (IMAGE.test(path)) {
     const img = el('img', 'preview-image')
-    img.src = `file://${encodeURI(path)}`
+    img.src = fileUrl(path)
     img.alt = name
     body.append(img)
   } else if (/\.pdf$/i.test(path)) {
     const frame = el('iframe', 'preview-pdf')
-    frame.src = `file://${encodeURI(path)}`
+    frame.src = fileUrl(path)
     body.append(frame)
   } else {
     const r = await window.garnet.readFile(path)
-    if (r?.kind === 'text') body.append(/\.(md|markdown)$/i.test(path) ? markdown(r.text) : Object.assign(el('pre', 'preview-text'), { textContent: r.text }))
+    if (r?.kind === 'text') body.append(/\.(md|markdown)$/i.test(path) ? markdown(r.text, path) : Object.assign(el('pre', 'preview-text'), { textContent: r.text }))
     else if (r?.kind === 'gone') body.append(el('p', 'muted', 'This file is no longer on disk.'))
     else body.append(el('p', 'muted', `No preview for this kind of file${r?.size != null ? ` (${Math.ceil(r.size / 1024)} KB)` : ''}.`))
   }
