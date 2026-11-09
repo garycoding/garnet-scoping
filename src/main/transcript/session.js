@@ -7,6 +7,8 @@
 // extended record by record, so a transcript being written is followed by
 // applying each new batch of lines.
 
+import { homedir } from 'node:os'
+import { isAbsolute, resolve } from 'node:path'
 import { classify } from './records.js'
 
 // The Claude Code versions this reader was checked against (R6.2).
@@ -201,8 +203,7 @@ export function createSession(id = null) {
             // kept as deliveries, as well as shown as an action.
             if (part.name === DELIVER_TOOL && Array.isArray(part.input?.files)) {
               const cwd = s.facts.cwd
-              const abs = (p) => (String(p).startsWith('/') ? String(p) : cwd ? `${cwd}/${p}` : String(p))
-              s.deliveries.push({ id: part.id, files: part.input.files.map(abs), caption: part.input.caption ?? null, at: r.at })
+              s.deliveries.push({ id: part.id, files: part.input.files.map((p) => deliveredPath(p, cwd)), caption: part.input.caption ?? null, at: r.at })
             }
             if (part.name === WRAP_TOOL) {
               t.recap = part.input.recap ?? null
@@ -378,4 +379,14 @@ export function snapshot(s) {
       checked: CHECKED_VERSIONS,
     },
   }
+}
+
+// A delivered file's path as the file system knows it: "~" is the home
+// folder, a relative path is taken from the session's working folder, and
+// "." and ".." are resolved, so that the same file always has one path.
+export function deliveredPath(p, cwd) {
+  let path = String(p)
+  if (path === '~' || path.startsWith('~/')) path = homedir() + path.slice(1)
+  if (isAbsolute(path)) return resolve(path)
+  return cwd ? resolve(cwd, path) : path
 }
