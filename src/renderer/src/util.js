@@ -30,3 +30,8 @@ export function since(when) {
 }
 
 export const shortPath = (p, home) => (home && p.startsWith(home) ? '~' + p.slice(home.length) : p)
+
+// A file:// address for a local path. encodeURI leaves "#" and "?" as they
+// are, and the browser would then read the rest of the name as a fragment or
+// a query, so those two are escaped as well.
+export const fileUrl = (path) => `file://${encodeURI(path).replace(/[?#]/g, encodeURIComponent)}`

@@ -7,7 +7,7 @@
 
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
-import { ago, clock, since } from './util.js'
+import { ago, clock, fileUrl, since } from './util.js'
 
 const $ = (id) => document.getElementById(id)
 const el = (tag, cls, text) => {
@@ -311,7 +311,7 @@ function renderForYou() {
         tile.title = f.exists ? `${f.path}\nClick to preview; right-click for more.` : `${f.path}\nNo longer on disk.`
         if (f.exists && IMAGE.test(f.path)) {
           const img = el('img')
-          img.src = `file://${encodeURI(f.path)}`
+          img.src = fileUrl(f.path)
           img.alt = basename(f.path)
           tile.append(img)
         }
@@ -337,12 +337,12 @@ async function previewFile(path, row) {
   const body = el('div', 'preview')
   if (IMAGE.test(path)) {
     const img = el('img', 'preview-image')
-    img.src = `file://${encodeURI(path)}`
+    img.src = fileUrl(path)
     img.alt = name
     body.append(img)
   } else if (/\.pdf$/i.test(path)) {
     const frame = el('iframe', 'preview-pdf')
-    frame.src = `file://${encodeURI(path)}`
+    frame.src = fileUrl(path)
     body.append(frame)
   } else {
     const r = await window.garnet.readFile(path)
