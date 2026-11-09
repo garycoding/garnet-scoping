@@ -4,6 +4,16 @@ All notable changes to this project are recorded here.
 
 ## [Unreleased]
 
+## [v0.8.4] - 2026-11-09
+
+### Highlights
+
+_Highlights were not generated for this release._
+
+### Bug fixes
+
+- File addresses and paths of delivered files (#60)
+
 ## [v0.8.3] - 2026-11-01
 
 ### Highlights
